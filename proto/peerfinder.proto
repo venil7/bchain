@@ -1,0 +1,16 @@
+syntax = "proto3";
+package peerfinder;
+
+service Peerfinder {
+    rpc Announce (AnnounceReq) returns (AnnounceResp);
+}
+
+message AnnounceReq {
+    string name = 1;
+    string address = 2;
+}
+
+message AnnounceResp {
+    string name = 1;
+    repeated AnnounceReq peers = 2;
+}
