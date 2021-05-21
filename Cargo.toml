@@ -12,11 +12,18 @@ path = "src/bin/server.rs"
 name = "client"
 path = "src/bin/client.rs"
 
+[[bin]] 
+name = "test"
+path = "src/bin/test.rs"
+
 [dependencies]
 tonic = "0.4"
 prost = "0.7"
-uuid = "0.8"
-tokio = { version = "1.6", features = ["macros", "rt-multi-thread"] }
+uuid = { version = "0.8", features = ["serde", "v4"] }
+structopt = "0.3"
+tokio = { version = "1", features = ["full"] }
+serde = {version="1", features=["derive"]}
+serde_cbor = "0.11"
 
 [build-dependencies]
 tonic-build = "0.4"

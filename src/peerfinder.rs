@@ -10,14 +10,15 @@ use peer_finder::peerfinder_server;
 use peer_finder::{AnnounceReq, AnnounceResp};
 
 #[derive(Debug, Default)]
-pub struct Node {
+pub struct NodeP2P {
   id: Uuid,
+  // server: peerfinder_server::PeerfinderServer
   peers: HashMap<Uuid, PeerfinderClient<tonic::transport::Channel>>,
 }
 
-impl Node {
-  pub fn new(id: Uuid) -> Node {
-    Node {
+impl NodeP2P {
+  pub fn new(id: Uuid) -> NodeP2P {
+    NodeP2P {
       id: id,
       peers: HashMap::new(),
     }
@@ -25,10 +26,10 @@ impl Node {
 }
 
 #[tonic::async_trait]
-impl peerfinder_server::Peerfinder for Node {
+impl peerfinder_server::Peerfinder for NodeP2P {
   async fn announce(&self, _req: Request<AnnounceReq>) -> Result<Response<AnnounceResp>, Status> {
     let response = AnnounceResp {
-      name: self.id.to_string().clone(),
+      id: self.id.to_string().clone(),
       peers: vec![],
     };
     Ok(Response::new(response))
