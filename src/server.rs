@@ -7,7 +7,7 @@ use std::net::SocketAddr;
 use std::collections::HashSet;
 use std::error::Error;
 use std::sync::Arc;
-use tokio::net::ToSocketAddrs;
+// use tokio::net::ToSocketAddrs;
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
 
@@ -24,9 +24,35 @@ impl ServerP2p {
     }
   }
   async fn handle_req(
-    _sender_address: &SocketAddr,
-    _bytes: &Vec<u8>,
+    _socket: Arc<Mutex<UdpSocket>>,
+    sender_address: &SocketAddr,
+    bytes: &Vec<u8>,
   ) -> Result<(), Box<dyn Error>> {
+    let gossip = serde_cbor::from_slice::<Gossip>(bytes)?;
+    match gossip {
+      Gossip::AllPeers(all_peers) => {
+        ServerP2p::handle_all_peers(_socket, sender_address, &all_peers).await?
+      }
+      Gossip::DiffPeers(diff_peers) => {
+        ServerP2p::handle_diff_peers(_socket, sender_address, &diff_peers).await?
+      }
+    }
+    Ok(())
+  }
+  async fn handle_all_peers(
+    _socket: Arc<Mutex<UdpSocket>>,
+    sender_address: &SocketAddr,
+    _all_peers: &Vec<Peer>,
+  ) -> Result<(), Box<dyn Error>> {
+    info!("all peers received from {}", sender_address);
+    Ok(())
+  }
+  async fn handle_diff_peers(
+    _socket: Arc<Mutex<UdpSocket>>,
+    sender_address: &SocketAddr,
+    _diff_peers: &Vec<Peer>,
+  ) -> Result<(), Box<dyn Error>> {
+    info!("diff peers received from {}", sender_address);
     Ok(())
   }
   async fn announce(
@@ -34,15 +60,19 @@ impl ServerP2p {
     peer: &Peer,
     peers: &[Peer],
   ) -> Result<(), Box<dyn Error>> {
+    info!("sending all known peers to {:?}", peer);
+
     let buf = serde_cbor::to_vec(&Gossip::AllPeers(peers.to_vec()))?;
     let socket = socket.lock().await;
     socket.send_to(&buf, peer.to_string()).await?;
     Ok(())
   }
 
-  pub async fn listen<A: ToSocketAddrs>(&self, address: A) -> Result<(), Box<dyn Error>> {
+  pub async fn listen(&self, address: &str) -> Result<(), Box<dyn Error>> {
     let socket = UdpSocket::bind(address).await?;
+    let local_addr = socket.local_addr();
     let socket = Arc::new(Mutex::new(socket));
+    info!("listening on {:?}", local_addr);
     let peers = { self.peers.lock().await.clone() };
     let peers: Vec<Peer> = peers.into_iter().collect();
     for peer in peers.iter() {
@@ -59,8 +89,9 @@ impl ServerP2p {
         (bytes, sender_address)
       };
 
+      let socket_clone = socket.clone();
       tokio::spawn(async move {
-        if let Err(err) = ServerP2p::handle_req(&sender_address, &bytes).await {
+        if let Err(err) = ServerP2p::handle_req(socket_clone, &sender_address, &bytes).await {
           info!("Error handling {:?}", err);
         }
       });
