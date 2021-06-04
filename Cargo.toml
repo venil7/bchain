@@ -8,14 +8,6 @@ edition = "2018"
 name = "server"
 path = "src/bin/server.rs"
 
-[[bin]] 
-name = "client"
-path = "src/bin/client.rs"
-
-[[bin]] 
-name = "test"
-path = "src/bin/test.rs"
-
 [dependencies]
 tonic = "0.4"
 prost = "0.7"
@@ -24,6 +16,8 @@ structopt = "0.3"
 tokio = { version = "1", features = ["full"] }
 serde = {version="1", features=["derive"]}
 serde_cbor = "0.11"
+env_logger = "0.8"
+log="0.4"
 
 [build-dependencies]
 tonic-build = "0.4"

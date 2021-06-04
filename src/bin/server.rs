@@ -1,21 +1,15 @@
-use bchain::peerfinder::NodeP2P;
-use bchain::peerfinder::peer_finder::peerfinder_server::PeerfinderServer;
-
 use bchain::cli::Cli;
+use bchain::server::ServerP2p;
+use env_logger;
+use std::error::Error;
 use structopt::StructOpt;
-use tonic::transport::Server;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn Error>> {
+  env_logger::init();
   let cli = Cli::from_args();
-
-  let addr = cli.listen.parse()?;
-  let peer_finder = NodeP2P::default();
-
-  Server::builder()
-    .add_service(PeerfinderServer::new(peer_finder))
-    .serve(addr)
-    .await?;
+  let server = ServerP2p::new(&cli.bootstrap);
+  server.listen(&cli.listen).await?;
 
   Ok(())
 }
