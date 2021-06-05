@@ -24,38 +24,50 @@ impl ServerP2p {
     }
   }
   async fn handle_req(
-    _socket: Arc<Mutex<UdpSocket>>,
+    socket: Arc<Mutex<UdpSocket>>,
+    peers: Arc<Mutex<HashSet<Peer>>>,
     sender_address: &SocketAddr,
     bytes: &Vec<u8>,
   ) -> Result<(), Box<dyn Error>> {
     let gossip = serde_cbor::from_slice::<Gossip>(bytes)?;
+    {
+      let mut own_peers = peers.lock().await;
+      own_peers.insert(Peer::from(*sender_address));
+    };
     match gossip {
       Gossip::AllPeers(all_peers) => {
-        ServerP2p::handle_all_peers(_socket, sender_address, &all_peers).await?
+        ServerP2p::handle_all_peers(socket, peers, sender_address, &all_peers).await?
       }
       Gossip::DiffPeers(diff_peers) => {
-        ServerP2p::handle_diff_peers(_socket, sender_address, &diff_peers).await?
+        ServerP2p::handle_diff_peers(socket, peers, sender_address, &diff_peers).await?
       }
     }
     Ok(())
   }
   async fn handle_all_peers(
-    _socket: Arc<Mutex<UdpSocket>>,
+    socket: Arc<Mutex<UdpSocket>>,
+    peers: Arc<Mutex<HashSet<Peer>>>,
     sender_address: &SocketAddr,
-    _all_peers: &Vec<Peer>,
+    all_peers: &[Peer],
   ) -> Result<(), Box<dyn Error>> {
     info!("all peers received from {}", sender_address);
+    let diff = ServerP2p::peer_diff(peers.clone(), &all_peers).await?;
+    ServerP2p::send_diff(socket, &Peer::from(*sender_address), &diff).await?;
+    ServerP2p::merge_peers(peers.clone(), &all_peers).await?;
     Ok(())
   }
   async fn handle_diff_peers(
     _socket: Arc<Mutex<UdpSocket>>,
+    peers: Arc<Mutex<HashSet<Peer>>>,
     sender_address: &SocketAddr,
-    _diff_peers: &Vec<Peer>,
+    diff_peers: &[Peer],
   ) -> Result<(), Box<dyn Error>> {
     info!("diff peers received from {}", sender_address);
+    ServerP2p::merge_peers(peers.clone(), &diff_peers).await?;
     Ok(())
   }
-  async fn announce(
+
+  async fn send_all(
     socket: Arc<Mutex<UdpSocket>>,
     peer: &Peer,
     peers: &[Peer],
@@ -64,7 +76,43 @@ impl ServerP2p {
 
     let buf = serde_cbor::to_vec(&Gossip::AllPeers(peers.to_vec()))?;
     let socket = socket.lock().await;
-    socket.send_to(&buf, peer.to_string()).await?;
+    socket.send_to(&buf, &**peer).await?;
+    Ok(())
+  }
+  async fn send_diff(
+    socket: Arc<Mutex<UdpSocket>>,
+    peer: &Peer,
+    peers: &[Peer],
+  ) -> Result<(), Box<dyn Error>> {
+    info!("sending {} items diff peers to {:?}", peers.len(), peer);
+    if peers.len() > 0 {
+      let buf = serde_cbor::to_vec(&Gossip::DiffPeers(peers.to_vec()))?;
+      let socket = socket.lock().await;
+      socket.send_to(&buf, &**peer).await?;
+    }
+    Ok(())
+  }
+
+  async fn peer_diff(
+    own_peers: Arc<Mutex<HashSet<Peer>>>,
+    their_peers: &[Peer],
+  ) -> Result<Vec<Peer>, Box<dyn Error>> {
+    let own_peers = own_peers.lock().await;
+    let their_peers = their_peers.iter().cloned().collect();
+    let diff = own_peers.difference(&their_peers).cloned().collect();
+
+    Ok(diff)
+  }
+
+  async fn merge_peers(
+    own_peers: Arc<Mutex<HashSet<Peer>>>,
+    their_peers: &[Peer],
+  ) -> Result<(), Box<dyn Error>> {
+    let mut own_peers = own_peers.lock().await;
+    let their_peers = their_peers.iter().cloned().collect();
+    let union = own_peers.union(&their_peers).cloned().collect();
+    *own_peers = union;
+
     Ok(())
   }
 
@@ -76,7 +124,7 @@ impl ServerP2p {
     let peers = { self.peers.lock().await.clone() };
     let peers: Vec<Peer> = peers.into_iter().collect();
     for peer in peers.iter() {
-      if let Err(e) = ServerP2p::announce(socket.clone(), &peer, &peers).await {
+      if let Err(e) = ServerP2p::send_all(socket.clone(), &peer, &peers).await {
         error!("Error announcing {:?}", e)
       }
     }
@@ -90,8 +138,11 @@ impl ServerP2p {
       };
 
       let socket_clone = socket.clone();
+      let peers_clone = self.peers.clone();
       tokio::spawn(async move {
-        if let Err(err) = ServerP2p::handle_req(socket_clone, &sender_address, &bytes).await {
+        if let Err(err) =
+          ServerP2p::handle_req(socket_clone, peers_clone, &sender_address, &bytes).await
+        {
           info!("Error handling {:?}", err);
         }
       });
