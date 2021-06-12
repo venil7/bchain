@@ -7,4 +7,6 @@ pub struct Cli {
   pub listen: String,
   #[structopt(name = "bootstrap", long = "--bootstrap")]
   pub bootstrap: Vec<String>,
+  #[structopt(name = "req", long = "--req", default_value = "")]
+  pub req: String,
 }

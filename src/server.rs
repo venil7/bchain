@@ -1,151 +1,173 @@
 use crate::domain::gossip::Gossip;
 use crate::domain::gossip::Peer;
-use log::{error, info};
-use serde_cbor;
+use log::{info, trace};
+use std::cell::RefCell;
 use std::net::SocketAddr;
+use std::rc::Rc;
 
 use std::collections::HashSet;
 use std::error::Error;
-use std::sync::Arc;
-// use tokio::net::ToSocketAddrs;
 use tokio::net::UdpSocket;
-use tokio::sync::Mutex;
+
+// #[derive(Debug, Clone)]
+// pub struct AppErr;
+// impl std::error::Error for AppErr {}
+// impl std::fmt::Display for AppErr {
+//   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+//     write!(f, "error")
+//   }
+// }
+
+// impl From<Box<dyn Error>> for AppErr {
+//   fn from(_: Box<dyn Error>) -> Self {
+//     AppErr
+//   }
+// }
+
+#[derive(Debug)]
+pub enum Message {
+  SendAllPeers(Peer, Vec<Peer>),
+  SendDiff(Peer, Vec<Peer>),
+}
 
 #[derive(Debug)]
 pub struct ServerP2p {
-  peers: Arc<Mutex<HashSet<Peer>>>,
+  peers: Rc<RefCell<HashSet<Peer>>>,
+  socket: Rc<RefCell<Option<UdpSocket>>>,
 }
 
 impl ServerP2p {
   pub fn new(bootstrap_peers: &[String]) -> ServerP2p {
-    let peers = bootstrap_peers.iter().cloned().map(|s| Peer(s)).collect();
+    let peers = bootstrap_peers.iter().cloned().map(Peer).collect();
+    let peers = Rc::new(RefCell::new(peers));
     ServerP2p {
-      peers: Arc::new(Mutex::new(peers)),
+      peers,
+      socket: Rc::new(RefCell::new(None)),
     }
   }
-  async fn handle_req(
-    socket: Arc<Mutex<UdpSocket>>,
-    peers: Arc<Mutex<HashSet<Peer>>>,
-    sender_address: &SocketAddr,
-    bytes: &Vec<u8>,
-  ) -> Result<(), Box<dyn Error>> {
-    let gossip = serde_cbor::from_slice::<Gossip>(bytes)?;
-    {
-      let mut own_peers = peers.lock().await;
-      own_peers.insert(Peer::from(*sender_address));
-    };
-    match gossip {
-      Gossip::AllPeers(all_peers) => {
-        ServerP2p::handle_all_peers(socket, peers, sender_address, &all_peers).await?
+
+  pub async fn listen(&mut self, address: &str) -> Result<(), Box<dyn Error>> {
+    let socket = UdpSocket::bind(address).await?;
+    let local_addr = socket.local_addr();
+    info!("listening on {:?}", local_addr);
+
+    self.socket.replace(Some(socket));
+
+    self.announce().await?;
+    loop {
+      if let Some(socket) = self.socket.borrow().as_ref() {
+        let mut buf = [0; 1024];
+        let (numbytes, sender_address) = socket.recv_from(&mut buf).await?;
+        let bytes = (&buf[0..numbytes]).to_vec();
+        self.handle_req(&sender_address, &bytes).await?;
       }
-      Gossip::DiffPeers(diff_peers) => {
-        ServerP2p::handle_diff_peers(socket, peers, sender_address, &diff_peers).await?
+    }
+  }
+
+  async fn handle_req(
+    &self,
+    sender_address: &SocketAddr,
+    bytes: &[u8],
+  ) -> Result<(), Box<dyn Error>> {
+    trace!("handle_req");
+    let gossip = serde_cbor::from_slice::<Gossip>(bytes)?;
+    match gossip {
+      Gossip::AllPeers(ref all_peers) => self.handle_all_peers(all_peers, sender_address).await?,
+      Gossip::DiffPeers(ref diff_peers) => {
+        self.handle_diff_peers(diff_peers, sender_address).await?
       }
     }
     Ok(())
   }
   async fn handle_all_peers(
-    socket: Arc<Mutex<UdpSocket>>,
-    peers: Arc<Mutex<HashSet<Peer>>>,
-    sender_address: &SocketAddr,
+    &self,
     all_peers: &[Peer],
+    sender_address: &SocketAddr,
   ) -> Result<(), Box<dyn Error>> {
+    let sender = Peer::from(*sender_address);
+    trace!("handle_all_peers");
     info!("all peers received from {}", sender_address);
-    let diff = ServerP2p::peer_diff(peers.clone(), &all_peers).await?;
-    ServerP2p::send_diff(socket, &Peer::from(*sender_address), &diff).await?;
-    ServerP2p::merge_peers(peers.clone(), &all_peers).await?;
+    let all_peers = all_peers
+      .into_iter()
+      .chain(vec![&sender])
+      .cloned()
+      .collect::<Vec<Peer>>();
+    let diff = self.peer_diff(&all_peers).await?;
+    if !diff.is_empty() {
+      self.send_diff(&Peer::from(*sender_address), &diff).await?;
+      self.merge_peers(&all_peers).await?;
+      self.announce().await?;
+    }
     Ok(())
   }
   async fn handle_diff_peers(
-    _socket: Arc<Mutex<UdpSocket>>,
-    peers: Arc<Mutex<HashSet<Peer>>>,
-    sender_address: &SocketAddr,
+    &self,
     diff_peers: &[Peer],
+    sender_address: &SocketAddr,
   ) -> Result<(), Box<dyn Error>> {
+    let sender = Peer::from(*sender_address);
+    let diff_peers = diff_peers
+      .into_iter()
+      .chain(vec![&sender])
+      .cloned()
+      .collect::<Vec<Peer>>();
+    trace!("handle_diff_peers");
     info!("diff peers received from {}", sender_address);
-    ServerP2p::merge_peers(peers.clone(), &diff_peers).await?;
+    self.merge_peers(&diff_peers).await?;
     Ok(())
   }
 
-  async fn send_all(
-    socket: Arc<Mutex<UdpSocket>>,
-    peer: &Peer,
-    peers: &[Peer],
-  ) -> Result<(), Box<dyn Error>> {
-    info!("sending all known peers to {:?}", peer);
-
-    let buf = serde_cbor::to_vec(&Gossip::AllPeers(peers.to_vec()))?;
-    let socket = socket.lock().await;
-    socket.send_to(&buf, &**peer).await?;
-    Ok(())
-  }
-  async fn send_diff(
-    socket: Arc<Mutex<UdpSocket>>,
-    peer: &Peer,
-    peers: &[Peer],
-  ) -> Result<(), Box<dyn Error>> {
-    info!("sending {} items diff peers to {:?}", peers.len(), peer);
-    if peers.len() > 0 {
-      let buf = serde_cbor::to_vec(&Gossip::DiffPeers(peers.to_vec()))?;
-      let socket = socket.lock().await;
-      socket.send_to(&buf, &**peer).await?;
+  async fn send_all(&self, peer: &Peer) -> Result<(), Box<dyn Error>> {
+    trace!("send_all");
+    if let Some(socket) = self.socket.borrow().as_ref() {
+      let peers: Vec<Peer> = self.peers.borrow().iter().cloned().collect();
+      let buf = serde_cbor::to_vec(&Gossip::AllPeers(peers))?;
+      socket.send_to(&buf, peer.0.clone()).await?;
+      info!("sending all known peers to {:?}", peer);
     }
     Ok(())
   }
 
-  async fn peer_diff(
-    own_peers: Arc<Mutex<HashSet<Peer>>>,
-    their_peers: &[Peer],
-  ) -> Result<Vec<Peer>, Box<dyn Error>> {
-    let own_peers = own_peers.lock().await;
-    let their_peers = their_peers.iter().cloned().collect();
-    let diff = own_peers.difference(&their_peers).cloned().collect();
+  async fn send_diff(&self, peer: &Peer, diff_peers: &[Peer]) -> Result<(), Box<dyn Error>> {
+    trace!("send_diff");
+    if let Some(socket) = self.socket.borrow().as_ref() {
+      let peers: Vec<Peer> = diff_peers.to_vec();
+      let buf = serde_cbor::to_vec(&Gossip::DiffPeers(peers))?;
+      socket.send_to(&buf, peer.0.clone()).await?;
+      info!(
+        "sending {} items diff peers to {:?}",
+        diff_peers.len(),
+        peer
+      );
+    }
+    Ok(())
+  }
 
+  async fn peer_diff(&self, their_peers: &[Peer]) -> Result<Vec<Peer>, Box<dyn Error>> {
+    trace!("peer_diff");
+    let their_peers = their_peers.iter().cloned().collect::<HashSet<Peer>>();
+    let diff = their_peers
+      .difference(&self.peers.borrow())
+      .cloned()
+      .collect::<Vec<Peer>>();
+    trace!("diff is {} long", diff.len());
+    trace!("known peers {:?}", self.peers.borrow().iter());
     Ok(diff)
   }
 
-  async fn merge_peers(
-    own_peers: Arc<Mutex<HashSet<Peer>>>,
-    their_peers: &[Peer],
-  ) -> Result<(), Box<dyn Error>> {
-    let mut own_peers = own_peers.lock().await;
+  async fn merge_peers(&self, their_peers: &[Peer]) -> Result<(), Box<dyn Error>> {
+    trace!("merge_peers");
     let their_peers = their_peers.iter().cloned().collect();
-    let union = own_peers.union(&their_peers).cloned().collect();
-    *own_peers = union;
-
+    let new_peers = { self.peers.borrow().union(&their_peers).cloned().collect() };
+    self.peers.replace(new_peers);
     Ok(())
   }
 
-  pub async fn listen(&self, address: &str) -> Result<(), Box<dyn Error>> {
-    let socket = UdpSocket::bind(address).await?;
-    let local_addr = socket.local_addr();
-    let socket = Arc::new(Mutex::new(socket));
-    info!("listening on {:?}", local_addr);
-    let peers = { self.peers.lock().await.clone() };
-    let peers: Vec<Peer> = peers.into_iter().collect();
-    for peer in peers.iter() {
-      if let Err(e) = ServerP2p::send_all(socket.clone(), &peer, &peers).await {
-        error!("Error announcing {:?}", e)
-      }
+  async fn announce(&self) -> Result<(), Box<dyn Error>> {
+    trace!("announce");
+    for peer in self.peers.borrow().iter() {
+      self.send_all(&peer).await?;
     }
-    loop {
-      let (bytes, sender_address) = {
-        let mut buf = [0; 128];
-        let sock = socket.lock().await;
-        let (numbytes, sender_address) = sock.recv_from(&mut buf).await?;
-        let bytes = (&buf[0..numbytes]).to_vec();
-        (bytes, sender_address)
-      };
-
-      let socket_clone = socket.clone();
-      let peers_clone = self.peers.clone();
-      tokio::spawn(async move {
-        if let Err(err) =
-          ServerP2p::handle_req(socket_clone, peers_clone, &sender_address, &bytes).await
-        {
-          info!("Error handling {:?}", err);
-        }
-      });
-    }
+    Ok(())
   }
 }
