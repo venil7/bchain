@@ -5,6 +5,7 @@ use structopt::StructOpt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+  dotenv::dotenv()?;
   env_logger::init();
   let cli = Cli::from_args();
   let addr = cli.listen.parse()?;

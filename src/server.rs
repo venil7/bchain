@@ -1,6 +1,7 @@
 use crate::connection::Connection;
 use crate::error::AppError;
 use crate::protocol::Frame;
+use log::{error, info};
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -26,10 +27,12 @@ impl FullNode {
 
   pub async fn run(addr: SocketAddr) -> Result<(), Box<dyn Error>> {
     let listener = TcpListener::bind(addr).await?;
+    info!("listening on {}", addr);
     let (sender, mut receiver) = mpsc::channel::<FrameMessage>(32);
 
     tokio::spawn(async move {
       let mut node = FullNode::new();
+      info!("ready to handle");
       node.handle_frames(&mut receiver).await?;
       Ok::<(), AppError>(())
     });
@@ -40,7 +43,7 @@ impl FullNode {
       tokio::spawn(async move {
         let mut connection = Connection::new(stream, address);
         if let Err(e) = FullNode::handle_connecton(&mut connection, sender).await {
-          eprintln!("{}", e)
+          error!("{}", e)
         }
       });
     }
@@ -51,12 +54,8 @@ impl FullNode {
     receiver: &mut mpsc::Receiver<FrameMessage>,
   ) -> Result<(), Box<dyn Error>> {
     while let Some((frame, responder)) = receiver.recv().await {
-      println!("received: {:?}", frame);
+      info!("received: {:?}", frame);
       responder.send(frame).unwrap();
-      // match responder.send(frame) {
-      // Err(_) => continue,
-      // _ => continue,
-      // }
     }
     Ok(())
   }
@@ -65,7 +64,7 @@ impl FullNode {
     connection: &mut Connection,
     frame_handling_queue: mpsc::Sender<FrameMessage>,
   ) -> Result<(), Box<dyn Error>> {
-    println!("connection from {}", connection.address);
+    info!("connection from {}", connection.address);
     while let Some(frame) = connection.read_frame().await? {
       let (tx, frame_handling_respond) = oneshot::channel();
       frame_handling_queue.send((frame, tx)).await?;

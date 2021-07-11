@@ -19,6 +19,7 @@ serde_cbor = "0.11"
 env_logger = "0.8"
 log="0.4"
 bytes="1"
+dotenv="0.15"
 
 # [build-dependencies]
 # tonic-build = "0.4"
