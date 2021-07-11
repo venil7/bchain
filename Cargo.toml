@@ -1,7 +1,7 @@
 [package]
 name = "bchain"
 version = "0.1.0"
-authors = ["@darkest_ruby <art@drkruby.co.uk>"]
+authors = ["@darkest_ruby <art@darkruby.co.uk>"]
 edition = "2018"
 
 [[bin]] 

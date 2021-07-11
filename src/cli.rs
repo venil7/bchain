@@ -5,8 +5,8 @@ use structopt::StructOpt;
 pub struct Cli {
   #[structopt(name = "listen", long = "--listen", default_value = "0.0.0.0:5566")]
   pub listen: String,
-  #[structopt(name = "bootstrap", long = "--bootstrap")]
-  pub bootstrap: Vec<String>,
-  #[structopt(name = "req", long = "--req", default_value = "")]
-  pub req: String,
+  // #[structopt(name = "bootstrap", long = "--bootstrap")]
+  // pub bootstrap: Vec<String>,
+  // #[structopt(name = "req", long = "--req", default_value = "")]
+  // pub req: String,
 }

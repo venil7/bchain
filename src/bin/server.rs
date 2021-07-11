@@ -1,5 +1,6 @@
 use bchain::cli::Cli;
-use bchain::server::FullNode;
+use bchain::error::AppError;
+use bchain::full_node::FullNode;
 use std::error::Error;
 use structopt::StructOpt;
 
@@ -9,7 +10,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
   env_logger::init();
   let cli = Cli::from_args();
   let addr = cli.listen.parse()?;
-  FullNode::run(addr).await?;
+
+  let server = tokio::spawn(async move {
+    FullNode::run(addr).await?;
+    Ok::<(), AppError>(())
+  });
+
+  let __ = server.await?;
 
   Ok(())
 }

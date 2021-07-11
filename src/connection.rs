@@ -39,14 +39,7 @@ impl Connection {
   }
 
   pub async fn write_frame(&mut self, frame: &Frame) -> Result<(), AppError> {
-    let header = b'{';
-    let footer = b'}';
-    let body = serde_cbor::to_vec(frame)?;
-    self.stream.write_u8(header).await?;
-    self.stream.write_i64(body.len() as i64).await?;
-    self.stream.write_all(&body).await?;
-    self.stream.write_u8(footer).await?;
-    self.stream.flush().await?;
+    frame.write(&mut self.stream).await?;
     Ok(())
   }
 
