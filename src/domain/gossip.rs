@@ -1,7 +1,9 @@
+use crate::error::AppError;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::ops::Deref;
+use std::str::FromStr;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Peer(pub String);
@@ -29,7 +31,14 @@ impl TryFrom<Peer> for SocketAddr {
 }
 impl From<SocketAddr> for Peer {
   fn from(socket_address: SocketAddr) -> Peer {
-    Peer(format!("{}", socket_address))
+    Peer(socket_address.to_string())
+  }
+}
+
+impl FromStr for Peer {
+  type Err = AppError;
+  fn from_str(socket_address: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> {
+    Ok(Peer(socket_address.to_string()))
   }
 }
 

@@ -1,5 +1,5 @@
 use bchain::cli::Cli;
-use bchain::server::ServerP2p;
+use bchain::server::FullNode;
 use std::error::Error;
 use structopt::StructOpt;
 
@@ -7,8 +7,8 @@ use structopt::StructOpt;
 async fn main() -> Result<(), Box<dyn Error>> {
   env_logger::init();
   let cli = Cli::from_args();
-  let mut server = ServerP2p::new(&cli.bootstrap);
-  server.listen(&cli.listen).await?;
+  let addr = cli.listen.parse()?;
+  FullNode::run(addr).await?;
 
   Ok(())
 }
