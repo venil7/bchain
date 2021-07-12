@@ -9,17 +9,19 @@ name = "server"
 path = "src/bin/server.rs"
 
 [dependencies]
-# tonic = "0.4"
-# prost = "0.7"
-uuid = { version = "0.8", features = ["serde", "v4"] }
-structopt = "0.3"
-tokio = { version = "1", features = ["full"] }
-serde = {version="1", features=["derive"]}
-serde_cbor = "0.11"
-env_logger = "0.8"
 log="0.4"
 bytes="1"
+rsa="0.4"
+hex="0.4"
+rand ="0.8"
+sha2 = "0.9"
 dotenv="0.15"
-
-# [build-dependencies]
-# tonic-build = "0.4"
+futures = "0.3"
+byteorder="1.4"
+structopt = "0.3"
+env_logger = "0.8"
+serde_cbor = "0.11"
+serde = {version="1", features=["derive"]}
+tokio = { version = "1", features = ["full"] }
+pkcs8={version="0.7", features=["alloc", "pem"]}
+uuid = { version = "0.8", features = ["serde", "v4"] }

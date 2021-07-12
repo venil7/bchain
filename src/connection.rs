@@ -5,7 +5,7 @@ use bytes::Buf;
 use bytes::BytesMut;
 use std::io::Cursor;
 use std::net::SocketAddr;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
 
 pub struct Connection {

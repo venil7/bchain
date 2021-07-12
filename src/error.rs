@@ -26,6 +26,17 @@ impl From<serde_cbor::Error> for AppError {
   }
 }
 
+impl From<pkcs8::Error> for AppError {
+  fn from(err: pkcs8::Error) -> Self {
+    AppError(format!("{}", err))
+  }
+}
+impl From<hex::FromHexError> for AppError {
+  fn from(err: hex::FromHexError) -> Self {
+    AppError(format!("{}", err))
+  }
+}
+
 impl AppError {
   pub fn new(str: &str) -> Self {
     AppError(str.to_owned())
