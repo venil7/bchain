@@ -1,4 +1,3 @@
-use crate::error::AppError;
 use bytes::Buf;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -10,22 +9,21 @@ use tokio::io::{AsyncWrite, AsyncWriteExt};
 const HEADER: u8 = b'{';
 const FOOTER: u8 = b'}';
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ParseError {
   Incomplete,
   Other(String),
 }
 impl Display for ParseError {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-    // let _ = debug!("{}", self);
     write!(f, "{:?}", self)
   }
 }
 impl Error for ParseError {}
 
-impl From<ParseError> for AppError {
-  fn from(pe: ParseError) -> Self {
-    AppError::new(&format!("{}", pe))
+impl From<serde_cbor::Error> for ParseError {
+  fn from(err: serde_cbor::Error) -> Self {
+    ParseError::Other(format!("{}", err))
   }
 }
 
@@ -49,7 +47,7 @@ impl Frame {
   {
     let body = serde_cbor::to_vec(self)?;
     stream.write_u8(HEADER).await?;
-    stream.write_i64(body.len() as i64).await?;
+    stream.write_u64(body.len() as u64).await?;
     stream.write_all(&body).await?;
     stream.write_u8(FOOTER).await?;
     stream.flush().await?;
@@ -78,8 +76,8 @@ fn get_footer(buf: &mut Cursor<&[u8]>) -> Result<(), ParseError> {
   let closing_tag = buf.get_u8();
   if closing_tag != FOOTER {
     return Err(ParseError::Other(format!(
-      "protocol error: expecting }}, got {:?}",
-      closing_tag
+      "Expecting {} but got {:?}",
+      FOOTER as char, closing_tag as char
     )));
   }
   Ok(())
@@ -90,17 +88,26 @@ fn get_u64(buf: &mut Cursor<&[u8]>) -> Result<u64, ParseError> {
     return Err(ParseError::Incomplete);
   }
 
+  let start = buf.position() as usize;
+  let end = buf.get_ref().len();
+  if (end - start) < 8 {
+    return Err(ParseError::Incomplete);
+  }
+
   Ok(buf.get_u64())
 }
 
-fn get_num_bytes<'a>(src: &mut Cursor<&'a [u8]>, num: u64) -> Result<&'a [u8], ParseError> {
-  let start = src.position() as usize;
-  let end = src.get_ref().len();
+fn get_num_bytes<'a>(buf: &mut Cursor<&'a [u8]>, num: u64) -> Result<&'a [u8], ParseError> {
+  if !buf.has_remaining() {
+    return Err(ParseError::Incomplete);
+  }
+  let start = buf.position() as usize;
+  let end = buf.get_ref().len();
   if (num as usize) > (end - start) {
     return Err(ParseError::Incomplete);
   }
-  src.set_position(start as u64 + num);
-  Ok(&src.get_ref()[start..start + num as usize])
+  buf.set_position(start as u64 + num);
+  Ok(&buf.get_ref()[start..start + num as usize])
 }
 
 impl Frame {
@@ -113,13 +120,13 @@ impl Frame {
         Ok(())
       }
       ch => Err(ParseError::Other(format!(
-        "protocol error: expecting {{, got {:?}",
-        ch
+        "Expecting {} but got {:?}",
+        HEADER as char, ch as char
       ))),
     }
   }
 
-  pub fn parse(buf: &mut Cursor<&[u8]>) -> Result<Frame, Box<dyn Error>> {
+  pub fn parse(buf: &mut Cursor<&[u8]>) -> Result<Frame, ParseError> {
     match get_u8(buf)? {
       HEADER => {
         let len = get_u64(buf)?;
@@ -128,7 +135,10 @@ impl Frame {
         let frame = serde_cbor::from_slice(bytes)?;
         Ok(frame)
       }
-      _ => Err(Box::new(AppError::new("protocol error"))),
+      ch => Err(ParseError::Other(format!(
+        "Expecting {} but got {}",
+        HEADER as char, ch as char
+      ))),
     }
   }
 }
@@ -178,6 +188,7 @@ mod tests {
     let mut cur: Cursor<&[u8]> = Cursor::new(&mut vec);
     Ok(Frame::check(&mut cur)?)
   }
+
   #[tokio::test]
   async fn test_frame_parse() -> Result<(), Box<dyn Error>> {
     let mut vec = vec![0; 64];
@@ -187,6 +198,37 @@ mod tests {
     //
     let mut cur: Cursor<&[u8]> = Cursor::new(&mut vec);
     assert_eq!(Frame::parse(&mut cur)?, frame);
+
+    Ok(())
+  }
+
+  #[tokio::test]
+  async fn test_frame_parse_2() -> Result<(), Box<dyn Error>> {
+    let mut vec = vec![0; 64];
+    let mut cur: Cursor<&mut [u8]> = Cursor::new(&mut vec);
+    let frame1 = Frame::Blockchain(Blockchain::A);
+    let frame2 = Frame::Gossip;
+    frame1.write(&mut cur).await?;
+    frame2.write(&mut cur).await?;
+    //
+    let mut cur: Cursor<&[u8]> = Cursor::new(&mut vec);
+    assert_eq!(Frame::parse(&mut cur)?, frame1);
+    assert_eq!(Frame::parse(&mut cur)?, frame2);
+
+    Ok(())
+  }
+
+  #[tokio::test]
+  async fn test_frame_check_incomplete() -> Result<(), Box<dyn Error>> {
+    let mut vec1 = vec![0; 64];
+    let frame1 = Frame::Blockchain(Blockchain::A);
+    let mut cur: Cursor<&mut [u8]> = Cursor::new(&mut vec1);
+    frame1.write(&mut cur).await?;
+    //
+    let mut cur: Cursor<&[u8]> = Cursor::new(&mut vec1[0..3]);
+    println!("{:?}", cur);
+    let res = Frame::parse(&mut cur).unwrap_err();
+    assert_eq!(res, ParseError::Incomplete);
 
     Ok(())
   }

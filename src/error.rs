@@ -1,6 +1,7 @@
+use crate::protocol::ParseError;
 use std::error::Error;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct AppError(String);
 
 impl std::error::Error for AppError {}
@@ -23,6 +24,11 @@ impl From<std::io::Error> for AppError {
 impl From<serde_cbor::Error> for AppError {
   fn from(err: serde_cbor::Error) -> Self {
     AppError(format!("{}", err))
+  }
+}
+impl From<ParseError> for AppError {
+  fn from(pe: ParseError) -> Self {
+    AppError::new(&format!("{}", pe))
   }
 }
 
