@@ -33,7 +33,7 @@ impl Connection {
           return Ok(None);
         } else {
           return Err(AppError::new("connection reset by peer"));
-        }
+        };
       }
     }
   }

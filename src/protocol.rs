@@ -17,7 +17,8 @@ pub enum ParseError {
 }
 impl Display for ParseError {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-    write!(f, "parse-error")
+    // let _ = debug!("{}", self);
+    write!(f, "{:?}", self)
   }
 }
 impl Error for ParseError {}
@@ -74,10 +75,11 @@ fn get_footer(buf: &mut Cursor<&[u8]>) -> Result<(), ParseError> {
   if !buf.has_remaining() {
     return Err(ParseError::Incomplete);
   }
-  if buf.get_ref()[buf.position() as usize] != FOOTER {
+  let closing_tag = buf.get_u8();
+  if closing_tag != FOOTER {
     return Err(ParseError::Other(format!(
       "protocol error: expecting }}, got {:?}",
-      buf.get_ref()[buf.position() as usize]
+      closing_tag
     )));
   }
   Ok(())
@@ -110,7 +112,10 @@ impl Frame {
         get_footer(buf)?;
         Ok(())
       }
-      _ => Err(ParseError::Other("protocol error while parsing".into())),
+      ch => Err(ParseError::Other(format!(
+        "protocol error: expecting {{, got {:?}",
+        ch
+      ))),
     }
   }
 
@@ -119,8 +124,8 @@ impl Frame {
       HEADER => {
         let len = get_u64(buf)?;
         let bytes = get_num_bytes(buf, len)?;
-        let frame = serde_cbor::from_slice(bytes)?;
         get_footer(buf)?;
+        let frame = serde_cbor::from_slice(bytes)?;
         Ok(frame)
       }
       _ => Err(Box::new(AppError::new("protocol error"))),

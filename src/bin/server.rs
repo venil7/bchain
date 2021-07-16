@@ -11,12 +11,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
   let cli = Cli::from_args();
   let addr = cli.listen.parse()?;
 
-  let server = tokio::spawn(async move {
+  let server_handle = tokio::spawn(async move {
     FullNode::run(addr).await?;
     Ok::<(), AppError>(())
   });
 
-  let __ = server.await?;
+  server_handle.await??;
 
   Ok(())
 }
