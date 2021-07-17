@@ -1,5 +1,5 @@
-use crate::domain::digest::AsBytes;
-use crate::domain::digest::HashDigest;
+use crate::chain::digest::AsBytes;
+use crate::chain::digest::HashDigest;
 use crate::error::AppError;
 use std::fmt::Display;
 use std::str::FromStr;

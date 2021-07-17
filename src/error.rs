@@ -1,4 +1,4 @@
-use crate::protocol::ParseError;
+use crate::protocol::error::ParseError;
 use std::error::Error;
 
 #[derive(Debug, PartialEq, Clone)]

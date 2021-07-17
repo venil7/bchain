@@ -1,6 +1,6 @@
 use bchain::cli::Cli;
 use bchain::error::AppError;
-use bchain::full_node::FullNode;
+use bchain::network::full_node::FullNode;
 use std::error::Error;
 use structopt::StructOpt;
 

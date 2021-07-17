@@ -1,6 +1,6 @@
-use crate::domain::address::Address;
-use crate::domain::digest::HashDigest;
-use crate::domain::digest::Hashable;
+use crate::chain::address::Address;
+use crate::chain::digest::HashDigest;
+use crate::chain::digest::Hashable;
 use crate::error::AppError;
 use pkcs8::PrivateKeyDocument;
 use rsa::hash::Hash;
@@ -52,8 +52,8 @@ impl Wallet {
     let padding = PaddingScheme::PKCS1v15Sign {
       hash: Some(Hash::SHA2_256),
     };
-    let public_key = self.sign(padding, &digest)?;
-    Ok(public_key)
+    let signature = self.sign(padding, &digest)?;
+    Ok(signature)
   }
 }
 
@@ -76,4 +76,15 @@ async fn from_priv_key(
   let private_key = RSAPrivateKey::from_pkcs8(key.as_ref())?;
   let public_key = RSAPublicKey::from(&private_key);
   Ok((private_key, public_key))
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[tokio::test]
+  async fn load_wallet_from_pem_test() -> Result<(), Box<dyn Error>> {
+    let _wallet = Wallet::from_file("./rsakey.pem").await?;
+    Ok(())
+  }
 }

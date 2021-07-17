@@ -1,6 +1,6 @@
 use bchain::cli::DEFAULT_LISTEN;
-use bchain::connection::Connection;
-use bchain::protocol::{Blockchain, Frame};
+use bchain::network::connection::Connection;
+use bchain::protocol::frame::{Blockchain, Frame};
 use log::info;
 use std::error::Error;
 use tokio::net::TcpStream;

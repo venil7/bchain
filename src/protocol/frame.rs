@@ -1,31 +1,12 @@
+use crate::protocol::error::ParseError;
 use bytes::Buf;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use std::fmt::Display;
-use std::fmt::Formatter;
 use std::io::Cursor;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 const HEADER: u8 = b'{';
 const FOOTER: u8 = b'}';
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum ParseError {
-  Incomplete,
-  Other(String),
-}
-impl Display for ParseError {
-  fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-    write!(f, "{:?}", self)
-  }
-}
-impl Error for ParseError {}
-
-impl From<serde_cbor::Error> for ParseError {
-  fn from(err: serde_cbor::Error) -> Self {
-    ParseError::Other(format!("{}", err))
-  }
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Blockchain {

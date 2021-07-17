@@ -1,6 +1,6 @@
-use crate::domain::address::Address;
-use crate::domain::digest::AsBytes;
-use crate::domain::digest::Hashable;
+use crate::chain::address::Address;
+use crate::chain::digest::AsBytes;
+use crate::chain::digest::Hashable;
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::mem;

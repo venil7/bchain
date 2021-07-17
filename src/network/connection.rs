@@ -1,6 +1,6 @@
 use crate::error::AppError;
-use crate::protocol::Frame;
-use crate::protocol::ParseError;
+use crate::protocol::error::ParseError;
+use crate::protocol::frame::Frame;
 use bytes::Buf;
 use bytes::BytesMut;
 use std::io::Cursor;

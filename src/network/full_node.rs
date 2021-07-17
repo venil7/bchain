@@ -1,6 +1,6 @@
-use crate::connection::Connection;
 use crate::error::AppError;
-use crate::protocol::Frame;
+use crate::network::connection::Connection;
+use crate::protocol::frame::Frame;
 use log::{error, info};
 use std::error::Error;
 use std::net::SocketAddr;
