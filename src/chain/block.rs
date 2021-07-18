@@ -48,3 +48,5 @@ impl AsBytes for Block {
     res
   }
 }
+
+impl Hashable for Block {}

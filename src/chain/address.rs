@@ -2,6 +2,7 @@ use crate::chain::digest::AsBytes;
 use crate::chain::digest::HashDigest;
 use crate::error::AppError;
 use std::fmt::Display;
+use std::ops::DerefMut;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -9,7 +10,7 @@ pub struct Address(HashDigest);
 
 impl Display for Address {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-    write!(f, "{}", hex::encode(self.0))
+    write!(f, "{}", self.0)
   }
 }
 
@@ -28,8 +29,8 @@ impl AsBytes for Address {
 impl FromStr for Address {
   type Err = AppError;
   fn from_str(addr: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> {
-    let mut bytes: HashDigest = [0u8; 32];
-    let _ = hex::decode_to_slice(addr, &mut bytes)?;
+    let mut bytes = HashDigest::default();
+    let _ = hex::decode_to_slice(addr, bytes.deref_mut())?;
     Ok(Address(bytes))
   }
 }

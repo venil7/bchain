@@ -2,6 +2,7 @@ use crate::chain::address::Address;
 use crate::chain::digest::HashDigest;
 use crate::chain::digest::Hashable;
 use crate::error::AppError;
+use crate::result::DynResult;
 use pkcs8::PrivateKeyDocument;
 use rsa::hash::Hash;
 use rsa::PaddingScheme;
@@ -42,17 +43,17 @@ impl Wallet {
   pub fn public_address(&self) -> Address {
     let public_key_bytes = self.to_public_key().n().to_bytes_be();
     let public_key_digest: Vec<u8> = Sha256::digest(&public_key_bytes).into_iter().collect();
-    let mut digest: HashDigest = [0; 32];
+    let mut digest = HashDigest::default();
     digest[..32].clone_from_slice(&public_key_digest[..32]);
     Address::from_digest(digest)
   }
 
-  pub fn sign_hashable<T: Hashable>(&self, s: &T) -> Result<Vec<u8>, Box<dyn Error>> {
+  pub fn sign_hashable<T: Hashable>(&self, s: &T) -> DynResult<Vec<u8>> {
     let digest = s.hash();
     let padding = PaddingScheme::PKCS1v15Sign {
       hash: Some(Hash::SHA2_256),
     };
-    let signature = self.sign(padding, &digest)?;
+    let signature = self.sign(padding, digest.deref())?;
     Ok(signature)
   }
 }
