@@ -1,6 +1,7 @@
 use crate::chain::address::Address;
 use crate::chain::digest::HashDigest;
 use crate::chain::digest::Hashable;
+use crate::chain::public_key::PublicKey;
 use crate::error::AppError;
 use crate::result::DynResult;
 use pkcs8::PrivateKeyDocument;
@@ -9,8 +10,6 @@ use rsa::PaddingScheme;
 use rsa::PublicKeyParts;
 use rsa::RSAPrivateKey;
 use rsa::RSAPublicKey;
-use sha2::Digest;
-use sha2::Sha256;
 use std::error::Error;
 use std::ops::Deref;
 use tokio::fs::File;
@@ -40,21 +39,24 @@ impl Wallet {
     }
   }
 
-  pub fn public_address(&self) -> Address {
+  pub fn public_key(&self) -> PublicKey {
     let public_key_bytes = self.to_public_key().n().to_bytes_be();
-    let public_key_digest: Vec<u8> = Sha256::digest(&public_key_bytes).into_iter().collect();
-    let mut digest = HashDigest::default();
-    digest[..32].clone_from_slice(&public_key_digest[..32]);
-    Address::from_digest(digest)
+    let mut public_key = PublicKey::default();
+    public_key[..256].clone_from_slice(&public_key_bytes[..256]);
+    public_key
   }
 
-  pub fn sign_hashable<T: Hashable>(&self, s: &T) -> DynResult<Vec<u8>> {
+  pub fn public_address(&self) -> Address {
+    self.public_key().to_address()
+  }
+
+  pub fn sign_hashable<T: Hashable>(&self, s: &T) -> DynResult<HashDigest> {
     let digest = s.hash();
     let padding = PaddingScheme::PKCS1v15Sign {
       hash: Some(Hash::SHA2_256),
     };
     let signature = self.sign(padding, digest.deref())?;
-    Ok(signature)
+    Ok(signature.into())
   }
 }
 

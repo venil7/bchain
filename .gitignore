@@ -2,3 +2,4 @@
 Cargo.lock
 chain
 .env
+rsakey.pem

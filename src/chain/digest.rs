@@ -1,6 +1,8 @@
+use byteorder::{LittleEndian, WriteBytesExt};
 use core::fmt::Display;
 use sha2::Digest;
 use sha2::Sha256;
+use std::mem;
 use std::ops::Deref;
 use std::ops::DerefMut;
 
@@ -32,17 +34,39 @@ impl Default for HashDigest {
     HashDigest([0u8; 32])
   }
 }
+impl AsBytes for HashDigest {
+  fn as_bytes(&self) -> Vec<u8> {
+    self.0.to_vec()
+  }
+}
+
+impl From<Vec<u8>> for HashDigest {
+  fn from(vec: Vec<u8>) -> Self {
+    assert!(vec.len() == 32);
+    let mut hash_digest = HashDigest::default();
+    hash_digest[..32].clone_from_slice(&vec[..32]);
+    hash_digest
+  }
+}
 
 pub trait AsBytes {
   fn as_bytes(&self) -> Vec<u8>;
 }
 
+impl AsBytes for u64 {
+  fn as_bytes(&self) -> std::vec::Vec<u8> {
+    let mut bs = [0u8; mem::size_of::<u64>()];
+    bs.as_mut()
+      .write_u64::<LittleEndian>(*self)
+      .expect("Unable to convert u64");
+    bs.to_vec()
+  }
+}
+
 pub trait Hashable: AsBytes {
   fn hash(&self) -> HashDigest {
     let digest: Vec<u8> = Sha256::digest(&self.as_bytes()).into_iter().collect();
-    let mut hash_digest = HashDigest::default();
-    hash_digest[..32].clone_from_slice(&digest[..32]);
-    hash_digest
+    digest.into()
   }
 }
 

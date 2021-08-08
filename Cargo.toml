@@ -10,6 +10,9 @@ path = "src/bin/server.rs"
 [[bin]] 
 name = "client"
 path = "src/bin/client.rs"
+[[bin]] 
+name = "wallet"
+path = "src/bin/wallet.rs"
 
 [dependencies]
 log="0.4"
