@@ -1,4 +1,4 @@
-use crate::schema::generated::blocks;
+use crate::database::generated::blocks;
 use chrono::NaiveDateTime;
 
 #[derive(Queryable, Debug)]
