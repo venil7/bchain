@@ -81,10 +81,10 @@ impl Hashable for String {}
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::result::DynResult;
+  use crate::result::AppResult;
 
   #[test]
-  fn string_as_bytes_test() -> DynResult<()> {
+  fn string_as_bytes_test() -> AppResult<()> {
     let str = String::from("abc");
     let res = str.as_bytes();
     assert_eq!(res, "abc".as_bytes());
@@ -92,7 +92,7 @@ mod tests {
   }
 
   #[test]
-  fn string_as_hash_test() -> DynResult<()> {
+  fn string_as_hash_test() -> AppResult<()> {
     let str = String::from("abc");
     let res = str.hash();
     assert_eq!(

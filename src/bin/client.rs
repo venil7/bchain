@@ -1,12 +1,12 @@
 use bchain::cli::DEFAULT_LISTEN;
 use bchain::network::connection::Connection;
 use bchain::protocol::frame::{Blockchain, Frame};
+use bchain::result::AppResult;
 use log::info;
-use std::error::Error;
 use tokio::net::TcpStream;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> AppResult<()> {
   dotenv::dotenv()?;
   env_logger::init();
   let stream = TcpStream::connect(DEFAULT_LISTEN).await?;

@@ -1,11 +1,11 @@
 use bchain::cli::Cli;
 use bchain::error::AppError;
 use bchain::network::full_node::FullNode;
-use std::error::Error;
+use bchain::result::AppResult;
 use structopt::StructOpt;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> AppResult<()> {
   dotenv::dotenv()?;
   env_logger::init();
   let cli = Cli::from_args();

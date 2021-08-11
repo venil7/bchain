@@ -3,7 +3,7 @@ extern crate diesel_migrations;
 
 use bchain::database::block::{Block, NewBlock};
 use bchain::database::generated::blocks;
-use bchain::error::AppResult;
+use bchain::result::AppResult;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use diesel_migrations::*;

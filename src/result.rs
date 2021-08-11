@@ -1,5 +1,3 @@
-use crate::error::AppError;
-use std::error::Error;
+use crate::error::DynError;
 
-pub type DynError = dyn Error + Send + Sync + 'static;
 pub type AppResult<T> = Result<T, Box<DynError>>;

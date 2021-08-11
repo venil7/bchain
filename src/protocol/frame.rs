@@ -1,4 +1,5 @@
 use crate::protocol::error::ParseError;
+use crate::result::AppResult;
 use bytes::Buf;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -22,7 +23,7 @@ pub enum Frame {
 }
 
 impl Frame {
-  pub async fn write<W>(&self, stream: &mut W) -> Result<(), Box<dyn Error>>
+  pub async fn write<W>(&self, stream: &mut W) -> AppResult<()>
   where
     W: AsyncWrite + std::marker::Unpin,
   {
@@ -129,14 +130,14 @@ mod tests {
   use super::*;
 
   #[test]
-  fn test_get_num_bytes_2() -> Result<(), Box<dyn Error>> {
+  fn test_get_num_bytes_2() -> AppResult<()> {
     let data: Vec<u8> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     let mut cur: Cursor<&[u8]> = Cursor::new(&data);
     let result = get_num_bytes(&mut cur, 2)?;
     Ok(assert_eq!(result.len(), 2))
   }
   #[test]
-  fn test_get_num_bytes_10() -> Result<(), Box<dyn Error>> {
+  fn test_get_num_bytes_10() -> AppResult<()> {
     let data: Vec<u8> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     let mut cur: Cursor<&[u8]> = Cursor::new(&data);
     let result = get_num_bytes(&mut cur, 10)?;
@@ -144,7 +145,7 @@ mod tests {
   }
 
   #[test]
-  fn test_get_num_bytes_11() -> Result<(), Box<dyn Error>> {
+  fn test_get_num_bytes_11() -> AppResult<()> {
     let data: Vec<u8> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     let mut cur: Cursor<&[u8]> = Cursor::new(&data);
     let result = get_num_bytes(&mut cur, 11);
@@ -152,7 +153,7 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_write_frame() -> Result<(), Box<dyn Error>> {
+  async fn test_write_frame() -> AppResult<()> {
     let mut vec = vec![0; 64];
     let mut cur: Cursor<&mut [u8]> = Cursor::new(&mut vec);
     let frame = Frame::Gossip;
@@ -160,7 +161,7 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_frame_check() -> Result<(), Box<dyn Error>> {
+  async fn test_frame_check() -> AppResult<()> {
     let mut vec = vec![0; 64];
     let mut cur: Cursor<&mut [u8]> = Cursor::new(&mut vec);
     let frame = Frame::Blockchain(Blockchain::A);
@@ -171,7 +172,7 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_frame_parse() -> Result<(), Box<dyn Error>> {
+  async fn test_frame_parse() -> AppResult<()> {
     let mut vec = vec![0; 64];
     let mut cur: Cursor<&mut [u8]> = Cursor::new(&mut vec);
     let frame = Frame::Blockchain(Blockchain::A);
@@ -184,7 +185,7 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_frame_parse_2() -> Result<(), Box<dyn Error>> {
+  async fn test_frame_parse_2() -> AppResult<()> {
     let mut vec = vec![0; 64];
     let mut cur: Cursor<&mut [u8]> = Cursor::new(&mut vec);
     let frame1 = Frame::Blockchain(Blockchain::A);
@@ -200,7 +201,7 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_frame_check_incomplete() -> Result<(), Box<dyn Error>> {
+  async fn test_frame_check_incomplete() -> AppResult<()> {
     let mut vec1 = vec![0; 64];
     let frame1 = Frame::Blockchain(Blockchain::A);
     let mut cur: Cursor<&mut [u8]> = Cursor::new(&mut vec1);

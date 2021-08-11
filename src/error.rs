@@ -1,6 +1,8 @@
 use crate::protocol::error::ParseError;
 use std::error::Error;
 
+pub type DynError = dyn Error + Send + Sync + 'static;
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct AppError(String);
 
@@ -11,11 +13,12 @@ impl std::fmt::Display for AppError {
   }
 }
 
-impl From<Box<dyn Error>> for AppError {
-  fn from(err: Box<dyn Error>) -> Self {
+impl From<Box<DynError>> for AppError {
+  fn from(err: Box<DynError>) -> Self {
     AppError(format!("{}", err))
   }
 }
+
 impl From<std::io::Error> for AppError {
   fn from(err: std::io::Error) -> Self {
     AppError(format!("{}", err))
