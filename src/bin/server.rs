@@ -4,7 +4,7 @@ use bchain::network::full_node::FullNode;
 use bchain::result::AppResult;
 use structopt::StructOpt;
 
-#[tokio::main]
+#[async_std::main]
 async fn main() -> AppResult<()> {
   dotenv::dotenv()?;
   env_logger::init();

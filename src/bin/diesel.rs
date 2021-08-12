@@ -1,53 +1,32 @@
 #[macro_use]
 extern crate diesel_migrations;
 
-use bchain::database::block::{Block, NewBlock};
-use bchain::database::generated::blocks;
+use bchain::cli::Cli;
+use bchain::database::block::NewBlock;
+use bchain::database::db::Db;
 use bchain::result::AppResult;
-use diesel::prelude::*;
-use diesel::sqlite::SqliteConnection;
-use diesel_migrations::*;
-use dotenv::dotenv;
-use std::env;
-use std::io::{Error as IoError, ErrorKind};
+use diesel_migrations::embed_migrations;
+use structopt::StructOpt;
 
-fn establish_connection() -> Result<SqliteConnection, IoError> {
-  dotenv().ok();
+#[async_std::main]
+async fn main() -> AppResult<()> {
+    embed_migrations!();
+    let cli = Cli::from_args();
 
-  let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-  SqliteConnection::establish(&database_url)
-    .or_else(|e| Err(IoError::new(ErrorKind::InvalidData, format!("{:?}", e))))
-}
+    let mut db = Db::new(&cli.database)?;
+    embedded_migrations::run(db.raw_connection()?)?;
 
-fn insert_block(conn: &SqliteConnection) -> AppResult<()> {
-  let block = NewBlock {
-    transactions: b"abcdef".to_vec(),
-    created: chrono::Utc::now().naive_utc(),
-  };
-  diesel::insert_into(blocks::table)
-    .values(&block)
-    .execute(conn)?;
+    println!("connected!");
 
-  Ok(())
-}
+    let block = NewBlock {
+        transactions: b"some long string goes here".to_vec(),
+        created: chrono::Utc::now().naive_utc(),
+    };
 
-fn print_users_holdings(conn: &SqliteConnection) -> AppResult<()> {
-  let blocks = blocks::table.load::<Block>(conn)?;
+    db.insert_block(&block)?;
+    // conn.execute("select * from blocks;")?;
 
-  for b in blocks {
-    println!("{:?}", b);
-  }
-  Ok(())
-}
-
-fn main() -> AppResult<()> {
-  embed_migrations!();
-
-  let conn = establish_connection()?;
-  println!("connected!");
-  // conn.execute("select * from blocks;")?;
-
-  insert_block(&conn)?;
-  print_users_holdings(&conn)?;
-  Ok(())
+    // insert_block(&conn)?;
+    // print_users_holdings(&conn)?;
+    Ok(())
 }

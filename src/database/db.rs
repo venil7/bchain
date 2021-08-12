@@ -1,20 +1,27 @@
+use crate::database::block::NewBlock;
+use crate::database::generated::blocks;
 use crate::result::AppResult;
-use async_std::task::spawn;
 use diesel::prelude::*;
 use diesel::SqliteConnection;
-use std::io::{Error as IoError, ErrorKind};
 
-struct Db {
-  connection: diesel::SqliteConnection,
+pub struct Db {
+    connection: SqliteConnection,
 }
 
 impl Db {
-  pub async fn new(path: &'static str) -> AppResult<Self> {
-    let connection = spawn(async move {
-      SqliteConnection::establish(path)
-        .or_else(|e| Err(IoError::new(ErrorKind::InvalidData, format!("{:?}", e))))
-    })
-    .await?;
-    Ok(Db { connection })
-  }
+    pub fn raw_connection<'a>(self: &'a Self) -> AppResult<&'a SqliteConnection> {
+        Ok(&self.connection)
+    }
+
+    pub fn new(path: &str) -> AppResult<Self> {
+        let connection = SqliteConnection::establish(&path)?;
+        Ok(Db { connection })
+    }
+
+    pub fn insert_block(&mut self, block: &NewBlock) -> AppResult<()> {
+        diesel::insert_into(blocks::table)
+            .values(block)
+            .execute(&self.connection)?;
+        Ok(())
+    }
 }
