@@ -6,17 +6,17 @@ use structopt::StructOpt;
 
 #[async_std::main]
 async fn main() -> AppResult<()> {
-  dotenv::dotenv()?;
-  env_logger::init();
-  let cli = Cli::from_args();
-  let addr = cli.listen.parse()?;
+    dotenv::dotenv()?;
+    env_logger::init();
+    let cli = Cli::from_args();
+    let addr = cli.listen.parse()?;
 
-  let server_handle = tokio::spawn(async move {
-    FullNode::run(addr).await?;
-    Ok::<(), AppError>(())
-  });
+    let server_handle = tokio::spawn(async move {
+        FullNode::run(addr).await?;
+        Ok::<(), AppError>(())
+    });
 
-  server_handle.await??;
+    server_handle.await??;
 
-  Ok(())
+    Ok(())
 }
