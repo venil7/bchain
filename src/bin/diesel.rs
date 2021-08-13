@@ -2,31 +2,31 @@
 extern crate diesel_migrations;
 
 use bchain::cli::Cli;
-use bchain::database::block::NewBlock;
-use bchain::database::db::Db;
+use bchain::db::db::Db;
+use bchain::db::raw_block::NewRawBlock;
 use bchain::result::AppResult;
 use diesel_migrations::embed_migrations;
 use structopt::StructOpt;
 
 #[async_std::main]
 async fn main() -> AppResult<()> {
-    embed_migrations!();
-    let cli = Cli::from_args();
+  embed_migrations!();
+  let cli = Cli::from_args();
 
-    let mut db = Db::new(&cli.database)?;
-    embedded_migrations::run(db.raw_connection()?)?;
+  let mut db = Db::new(&cli.database)?;
+  embedded_migrations::run(db.raw_connection()?)?;
 
-    println!("connected!");
+  println!("connected!");
 
-    let block = NewBlock {
-        transactions: b"some long string goes here".to_vec(),
-        created: chrono::Utc::now().naive_utc(),
-    };
+  let block = NewRawBlock {
+    block: b"some long string goes here".to_vec(),
+    created: chrono::Utc::now().naive_utc(),
+  };
 
-    db.insert_block(&block)?;
-    // conn.execute("select * from blocks;")?;
+  db.insert_block(&block)?;
+  // conn.execute("select * from blocks;")?;
 
-    // insert_block(&conn)?;
-    // print_users_holdings(&conn)?;
-    Ok(())
+  // insert_block(&conn)?;
+  // print_users_holdings(&conn)?;
+  Ok(())
 }

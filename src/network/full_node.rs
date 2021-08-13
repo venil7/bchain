@@ -1,5 +1,4 @@
 use crate::error::AppError;
-use crate::error::DynError;
 use crate::network::connection::Connection;
 use crate::protocol::frame::Frame;
 use crate::result::AppResult;

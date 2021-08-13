@@ -39,6 +39,17 @@ impl AsBytes for HashDigest {
     self.0.to_vec()
   }
 }
+impl<T> AsBytes for Option<T>
+where
+  T: AsBytes,
+{
+  fn as_bytes(&self) -> Vec<u8> {
+    match self {
+      Some(n) => n.as_bytes(),
+      _ => vec![],
+    }
+  }
+}
 
 impl From<Vec<u8>> for HashDigest {
   fn from(vec: Vec<u8>) -> Self {

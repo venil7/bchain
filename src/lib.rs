@@ -3,7 +3,7 @@ extern crate diesel;
 
 pub mod chain;
 pub mod cli;
-pub mod database;
+pub mod db;
 pub mod error;
 pub mod network;
 pub mod protocol;

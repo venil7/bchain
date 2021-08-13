@@ -1,7 +1,7 @@
 table! {
     blocks (id) {
         id -> Integer,
-        transactions -> Binary,
+        block -> Binary,
         created -> Timestamp,
     }
 }

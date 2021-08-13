@@ -1,0 +1,6 @@
+tab_spaces = 2
+newline_style = "Unix"
+item_brace_style = "PreferSameLine"
+where_layout = "Horizontal"
+where_pred_indent = "Block"
+where_style = "Rfc"

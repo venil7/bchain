@@ -1,5 +1,5 @@
 CREATE TABLE blocks (
   id INTEGER NOT NULL PRIMARY KEY,
-  transactions BLOB NOT NULL,
+  block BLOB NOT NULL,
   created TIMESTAMP NOT NULL
 );
