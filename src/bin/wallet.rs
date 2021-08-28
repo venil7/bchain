@@ -1,9 +1,8 @@
-use bchain::chain::address::Address;
+use bchain::chain::digest::Hashable;
 use bchain::chain::tx::Tx;
 use bchain::chain::wallet::Wallet;
 use bchain::cli::Cli;
 use bchain::result::AppResult;
-use std::str::FromStr;
 use structopt::StructOpt;
 
 #[tokio::main]
@@ -11,13 +10,18 @@ async fn main() -> AppResult<()> {
   let cli = Cli::from_args();
   let wallet = Wallet::from_file(&cli.wallet).await?;
 
-  let my_address = format!("{}", wallet.public_address());
-  let tx = Tx {
-    sender: wallet.public_key(),
-    receiver: Address::from_str(&my_address)?,
+  let mut tx = Tx {
+    sender: wallet.public_key()?,
+    receiver: wallet.public_key()?,
     amount: 12345,
+    signature: None,
   };
-  println!("--> {:?}", wallet.sign_hashable(&tx)?.len());
+  tx.signature = Some(wallet.sign_hashable(&tx)?);
+
+  let json = serde_json::to_string(&tx)?;
+  let hash = tx.hash();
+
+  println!("{}\n{}", json, hash);
 
   Ok(())
 }

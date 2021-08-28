@@ -10,10 +10,6 @@ pub struct Block {
   pub txs: Vec<Tx>,
 }
 
-// impl Bock {
-//   pub fn produce_child
-// }
-
 impl AsBytes for Block {
   fn as_bytes(&self) -> std::vec::Vec<u8> {
     let mut res = vec![];

@@ -1,7 +1,7 @@
 use structopt::StructOpt;
 
 pub const DEFAULT_LISTEN: &str = "0.0.0.0:5566";
-pub const DEFAULT_WALLET: &str = "./raskey.pem";
+pub const DEFAULT_WALLET: &str = "./rsakey.pem";
 pub const DEFAULT_DATABASE: &str = "./chain.sqlite";
 
 #[derive(StructOpt, Debug, Clone)]

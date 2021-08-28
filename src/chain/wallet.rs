@@ -1,5 +1,4 @@
 use crate::chain::address::Address;
-use crate::chain::digest::HashDigest;
 use crate::chain::digest::Hashable;
 use crate::chain::public_key::PublicKey;
 use crate::error::AppError;
@@ -10,9 +9,12 @@ use rsa::PaddingScheme;
 use rsa::PublicKeyParts;
 use rsa::RSAPrivateKey;
 use rsa::RSAPublicKey;
+use std::convert::TryFrom;
 use std::ops::Deref;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
+
+use super::signature::Signature;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Wallet {
@@ -38,24 +40,27 @@ impl Wallet {
     }
   }
 
-  pub fn public_key(&self) -> PublicKey {
+  pub fn public_key(&self) -> AppResult<PublicKey> {
     let public_key_bytes = self.to_public_key().n().to_bytes_be();
-    let mut public_key = PublicKey::default();
-    public_key[..256].clone_from_slice(&public_key_bytes[..256]);
-    public_key
+    let public_key = PublicKey::try_new(&public_key_bytes[..])?;
+    Ok(public_key)
+    // let mut public_key = PublicKey::default();
+    // public_key[..256].clone_from_slice(&public_key_bytes[..256]);
+    // public_key
   }
 
-  pub fn public_address(&self) -> Address {
-    self.public_key().to_address()
+  pub fn public_address(&self) -> AppResult<Address> {
+    Ok(self.public_key()?.to_address())
   }
 
-  pub fn sign_hashable<T: Hashable>(&self, s: &T) -> AppResult<HashDigest> {
+  pub fn sign_hashable<T: Hashable>(&self, s: &T) -> AppResult<Signature> {
     let digest = s.hash();
     let padding = PaddingScheme::PKCS1v15Sign {
       hash: Some(Hash::SHA2_256),
     };
-    let signature = self.sign(padding, digest.deref())?;
-    Ok(signature.into())
+    let signature_bytes = self.sign(padding, digest.deref())?;
+    let signature = Signature::try_from(&signature_bytes[..])?;
+    Ok(signature)
   }
 }
 
@@ -87,4 +92,10 @@ mod tests {
     let _wallet = Wallet::from_file("./rsakey.pem").await?;
     Ok(())
   }
+
+  // #[test]
+  // fn load_wallet_from_pem_test() -> AppResult<()> {
+  //   let _wallet = Wallet::from_file("./rsakey.pem").await?;
+  //   Ok(())
+  // }
 }

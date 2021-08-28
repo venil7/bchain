@@ -12,6 +12,10 @@ path = "src/bin/server.rs"
 name = "wallet"
 path = "src/bin/wallet.rs"
 
+[[bin]] 
+name = "diesel"
+path = "src/bin/diesel.rs"
+
 [dependencies]
 log="0.4"
 bytes="1"
@@ -25,6 +29,7 @@ byteorder="1.4"
 structopt = "0.3"
 env_logger = "0.8"
 serde_cbor = "0.11"
+serde_json = "1.0"
 serde = {version="1", features=["derive"]}
 tokio = { version = "1", features = ["full"] }
 pkcs8={version="0.7", features=["alloc", "pem"]}

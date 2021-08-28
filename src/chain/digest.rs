@@ -1,12 +1,17 @@
 use byteorder::{LittleEndian, WriteBytesExt};
 use core::fmt::Display;
+use serde::Deserialize;
+use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
+use std::convert::TryFrom;
 use std::mem;
 use std::ops::Deref;
 use std::ops::DerefMut;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+use crate::error::AppError;
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct HashDigest([u8; 32]);
 
 impl Display for HashDigest {
@@ -14,6 +19,24 @@ impl Display for HashDigest {
     write!(f, "{}", hex::encode(self.0))
   }
 }
+
+// impl Serialize for HashDigest {
+//   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//   where
+//     S: serde::Serializer,
+//   {
+//     serializer.serialize_str(&format!("{}", self))
+//   }
+// }
+
+// impl<'de> Deserialize<'de> for HashDigest {
+//   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//   where
+//     D: serde::Deserializer<'de>,
+//   {
+//     deserializer.deserialize_string(visitor)
+//   }
+// }
 
 impl Deref for HashDigest {
   type Target = [u8; 32];
@@ -57,6 +80,15 @@ impl From<Vec<u8>> for HashDigest {
     let mut hash_digest = HashDigest::default();
     hash_digest[..32].clone_from_slice(&vec[..32]);
     hash_digest
+  }
+}
+
+impl TryFrom<String> for HashDigest {
+  type Error = AppError;
+
+  fn try_from(value: String) -> Result<Self, Self::Error> {
+    let v = hex::decode(value)?;
+    Ok(v.into())
   }
 }
 
