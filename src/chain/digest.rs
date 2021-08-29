@@ -11,8 +11,10 @@ use std::ops::DerefMut;
 
 use crate::error::AppError;
 
+const HASH_LENGTH: usize = 32;
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct HashDigest([u8; 32]);
+pub struct HashDigest([u8; HASH_LENGTH]);
 
 impl Display for HashDigest {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
@@ -39,7 +41,7 @@ impl Display for HashDigest {
 // }
 
 impl Deref for HashDigest {
-  type Target = [u8; 32];
+  type Target = [u8; HASH_LENGTH];
 
   fn deref(&self) -> &Self::Target {
     &&self.0
@@ -54,7 +56,7 @@ impl DerefMut for HashDigest {
 
 impl Default for HashDigest {
   fn default() -> Self {
-    HashDigest([0u8; 32])
+    HashDigest([0u8; HASH_LENGTH])
   }
 }
 impl AsBytes for HashDigest {
@@ -76,9 +78,9 @@ where
 
 impl From<Vec<u8>> for HashDigest {
   fn from(vec: Vec<u8>) -> Self {
-    assert!(vec.len() == 32);
+    assert!(vec.len() == HASH_LENGTH);
     let mut hash_digest = HashDigest::default();
-    hash_digest[..32].clone_from_slice(&vec[..32]);
+    hash_digest[..HASH_LENGTH].clone_from_slice(&vec[..HASH_LENGTH]);
     hash_digest
   }
 }

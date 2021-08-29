@@ -1,4 +1,3 @@
-use crate::protocol::error::ParseError;
 use std::error::Error;
 
 pub type DynError = dyn Error + Send + Sync + 'static;
@@ -24,17 +23,11 @@ impl From<std::io::Error> for AppError {
     AppError(format!("{}", err))
   }
 }
-impl From<serde_cbor::Error> for AppError {
-  fn from(err: serde_cbor::Error) -> Self {
+impl From<serde_json::Error> for AppError {
+  fn from(err: serde_json::Error) -> Self {
     AppError(format!("{}", err))
   }
 }
-impl From<ParseError> for AppError {
-  fn from(pe: ParseError) -> Self {
-    AppError::new(&format!("{}", pe))
-  }
-}
-
 impl From<pkcs8::Error> for AppError {
   fn from(err: pkcs8::Error) -> Self {
     AppError(format!("{}", err))

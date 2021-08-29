@@ -3,36 +3,30 @@ use crate::chain::digest::Hashable;
 use crate::chain::public_key::PublicKey;
 use crate::error::AppError;
 use crate::result::AppResult;
-use pkcs8::PrivateKeyDocument;
+use pkcs8::FromPrivateKey;
 use rsa::hash::Hash;
 use rsa::PaddingScheme;
-use rsa::PublicKeyParts;
-use rsa::RSAPrivateKey;
-use rsa::RSAPublicKey;
+use rsa::{PublicKeyParts, RsaPrivateKey};
 use std::convert::TryFrom;
 use std::ops::Deref;
-use tokio::fs::File;
-use tokio::io::AsyncReadExt;
 
 use super::signature::Signature;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Wallet {
-  private_key: RSAPrivateKey,
+  private_key: RsaPrivateKey,
 }
 
 impl Deref for Wallet {
-  type Target = RSAPrivateKey;
+  type Target = RsaPrivateKey;
   fn deref(&self) -> &<Self as std::ops::Deref>::Target {
     &self.private_key
   }
 }
 
 impl Wallet {
-  pub async fn from_file(fname: &str) -> AppResult<Wallet> {
-    let file_content = from_file(fname).await?;
-    let private_key_doc = from_pem(&file_content).await?;
-    let (private_key, _) = from_priv_key(&private_key_doc).await?;
+  pub async fn from_file(pem_file_path: &str) -> AppResult<Wallet> {
+    let private_key = RsaPrivateKey::read_pkcs8_pem_file(pem_file_path)?;
     if private_key.validate().is_ok() {
       Ok(Wallet { private_key })
     } else {
@@ -44,9 +38,6 @@ impl Wallet {
     let public_key_bytes = self.to_public_key().n().to_bytes_be();
     let public_key = PublicKey::try_new(&public_key_bytes[..])?;
     Ok(public_key)
-    // let mut public_key = PublicKey::default();
-    // public_key[..256].clone_from_slice(&public_key_bytes[..256]);
-    // public_key
   }
 
   pub fn public_address(&self) -> AppResult<Address> {
@@ -64,25 +55,6 @@ impl Wallet {
   }
 }
 
-async fn from_pem(s: &str) -> Result<PrivateKeyDocument, AppError> {
-  let key = PrivateKeyDocument::from_pem(s)?;
-  Ok(key)
-}
-
-async fn from_file(fname: &str) -> AppResult<String> {
-  let mut file = File::open(fname).await?;
-  let mut buf = vec![];
-  file.read_to_end(&mut buf).await?;
-  let str = std::str::from_utf8(&buf)?;
-  Ok(str.to_owned())
-}
-
-async fn from_priv_key(key: &PrivateKeyDocument) -> AppResult<(RSAPrivateKey, RSAPublicKey)> {
-  let private_key = RSAPrivateKey::from_pkcs8(key.as_ref())?;
-  let public_key = RSAPublicKey::from(&private_key);
-  Ok((private_key, public_key))
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -92,10 +64,4 @@ mod tests {
     let _wallet = Wallet::from_file("./rsakey.pem").await?;
     Ok(())
   }
-
-  // #[test]
-  // fn load_wallet_from_pem_test() -> AppResult<()> {
-  //   let _wallet = Wallet::from_file("./rsakey.pem").await?;
-  //   Ok(())
-  // }
 }

@@ -4,9 +4,9 @@ version = "0.1.0"
 authors = ["@darkest_ruby <art@darkruby.co.uk>"]
 edition = "2018"
 
-[[bin]] 
-name = "server"
-path = "src/bin/server.rs"
+# [[bin]] 
+# name = "server"
+# path = "src/bin/server.rs"
 
 [[bin]] 
 name = "wallet"
@@ -19,7 +19,7 @@ path = "src/bin/diesel.rs"
 [dependencies]
 log="0.4"
 bytes="1"
-rsa="0.4"
+rsa="0.5"
 hex="0.4"
 rand ="0.8"
 sha2 = "0.9"
@@ -27,8 +27,7 @@ dotenv="0.15"
 futures = "0.3"
 byteorder="1.4"
 structopt = "0.3"
-env_logger = "0.8"
-serde_cbor = "0.11"
+env_logger = "0.9"
 serde_json = "1.0"
 serde = {version="1", features=["derive"]}
 tokio = { version = "1", features = ["full"] }
