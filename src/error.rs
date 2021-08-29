@@ -38,6 +38,11 @@ impl From<hex::FromHexError> for AppError {
     AppError(format!("{}", err))
   }
 }
+impl From<base58::FromBase58Error> for AppError {
+  fn from(_: base58::FromBase58Error) -> Self {
+    AppError(format!("FromBase58Error"))
+  }
+}
 
 impl AppError {
   pub fn new(str: &str) -> Self {

@@ -22,24 +22,6 @@ impl Display for HashDigest {
   }
 }
 
-// impl Serialize for HashDigest {
-//   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//   where
-//     S: serde::Serializer,
-//   {
-//     serializer.serialize_str(&format!("{}", self))
-//   }
-// }
-
-// impl<'de> Deserialize<'de> for HashDigest {
-//   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-//   where
-//     D: serde::Deserializer<'de>,
-//   {
-//     deserializer.deserialize_string(visitor)
-//   }
-// }
-
 impl Deref for HashDigest {
   type Target = [u8; HASH_LENGTH];
 
