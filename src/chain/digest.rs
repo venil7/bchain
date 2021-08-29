@@ -80,6 +80,15 @@ pub trait AsBytes {
   fn as_bytes(&self) -> Vec<u8>;
 }
 
+impl AsBytes for i64 {
+  fn as_bytes(&self) -> std::vec::Vec<u8> {
+    let mut bs = [0u8; mem::size_of::<i64>()];
+    bs.as_mut()
+      .write_i64::<LittleEndian>(*self)
+      .expect("Unable to convert u64");
+    bs.to_vec()
+  }
+}
 impl AsBytes for u64 {
   fn as_bytes(&self) -> std::vec::Vec<u8> {
     let mut bs = [0u8; mem::size_of::<u64>()];

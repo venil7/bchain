@@ -5,9 +5,9 @@ use crate::chain::tx::Tx;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Block {
-  pub timestamp: u64,
+  pub timestamp: i64,
   pub txs: HashMap<String, Tx>,
   pub parent_hash: Option<HashDigest>,
 }
@@ -26,3 +26,44 @@ impl AsBytes for Block {
 }
 
 impl Hashable for Block {}
+
+impl Block {
+  pub fn new() -> Block {
+    Block {
+      timestamp: chrono::Utc::now().timestamp(),
+      txs: Default::default(),
+      parent_hash: None,
+    }
+  }
+  pub fn new_from_previous(previous_block: &Block) -> Block {
+    Block {
+      timestamp: chrono::Utc::now().timestamp(),
+      txs: Default::default(),
+      parent_hash: Some(previous_block.hash()),
+    }
+  }
+  pub fn add_tx(&mut self, tx: &Tx) -> () {
+    let key = format!("{}", tx.receiver.to_address());
+    self.txs.insert(key, tx.clone());
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::{chain::wallet::Wallet, result::AppResult};
+
+  #[tokio::test]
+  async fn bloc_equality_test() -> AppResult<()> {
+    let wallet = Wallet::from_file("./rsakey.pem").await?;
+    let tx = wallet.new_transaction(&wallet.public_key()?, 0)?;
+    let genesis = Block::new();
+    let mut block = Block::new_from_previous(&genesis);
+    block.add_tx(&tx);
+    let hash1 = block.hash();
+    let block: Block = serde_json::from_str(&serde_json::to_string(&block)?)?;
+    let hash2 = block.hash();
+    assert_eq!(hash1, hash2);
+    Ok(())
+  }
+}

@@ -11,6 +11,7 @@ use std::convert::TryFrom;
 use std::ops::Deref;
 
 use super::signature::Signature;
+use super::tx::Tx;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Wallet {
@@ -52,6 +53,17 @@ impl Wallet {
     let signature_bytes = self.sign(padding, digest.deref())?;
     let signature = Signature::try_from(&signature_bytes[..])?;
     Ok(signature)
+  }
+
+  pub fn new_transaction(&self, receiever: &PublicKey, amount: u64) -> AppResult<Tx> {
+    let mut tx = Tx {
+      sender: self.public_key()?,
+      receiver: receiever.clone(),
+      amount,
+      signature: None,
+    };
+    tx.signature = Some(self.sign_hashable(&tx)?);
+    Ok(tx)
   }
 }
 
