@@ -17,6 +17,7 @@ name = "diesel"
 path = "src/bin/diesel.rs"
 
 [dependencies]
+libp2p="*"
 log="0.4"
 bytes="1"
 rsa="0.5"

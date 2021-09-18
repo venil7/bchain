@@ -14,4 +14,6 @@ pub enum Frame {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum BchainRequest {
   GetBlock(usize),
+  SubmitTransaction(Tx),
+  SubmitBlock(Block),
 }

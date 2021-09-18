@@ -26,7 +26,7 @@ impl Deref for HashDigest {
   type Target = [u8; HASH_LENGTH];
 
   fn deref(&self) -> &Self::Target {
-    &&self.0
+    &self.0
   }
 }
 

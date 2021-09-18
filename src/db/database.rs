@@ -9,12 +9,12 @@ pub struct Db {
 }
 
 impl Db {
-  pub fn raw_connection<'a>(self: &'a Self) -> AppResult<&'a SqliteConnection> {
+  pub fn raw_connection(&self) -> AppResult<&SqliteConnection> {
     Ok(&self.connection)
   }
 
   pub fn new(path: &str) -> AppResult<Self> {
-    let connection = SqliteConnection::establish(&path)?;
+    let connection = SqliteConnection::establish(path)?;
     Ok(Db { connection })
   }
 

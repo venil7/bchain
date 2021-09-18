@@ -6,7 +6,7 @@ use crate::result::AppResult;
 use pkcs8::FromPrivateKey;
 use rsa::hash::Hash;
 use rsa::PaddingScheme;
-use rsa::{PublicKeyParts, RsaPrivateKey};
+use rsa::{PublicKey as RSAPublicKey, PublicKeyParts, RsaPrivateKey};
 use std::convert::TryFrom;
 use std::ops::Deref;
 
@@ -24,6 +24,10 @@ impl Deref for Wallet {
     &self.private_key
   }
 }
+
+const PADDING: PaddingScheme = PaddingScheme::PKCS1v15Sign {
+  hash: Some(Hash::SHA2_256),
+};
 
 impl Wallet {
   pub async fn from_file(pem_file_path: &str) -> AppResult<Wallet> {
@@ -45,17 +49,14 @@ impl Wallet {
     Ok(self.public_key()?.to_address())
   }
 
-  pub fn sign_hashable<T: Hashable>(&self, s: &T) -> AppResult<Signature> {
+  fn sign_hashable<T: Hashable>(&self, s: &T) -> AppResult<Signature> {
     let digest = s.hash();
-    let padding = PaddingScheme::PKCS1v15Sign {
-      hash: Some(Hash::SHA2_256),
-    };
-    let signature_bytes = self.sign(padding, digest.deref())?;
+    let signature_bytes = self.sign(PADDING, digest.deref())?;
     let signature = Signature::try_from(&signature_bytes[..])?;
     Ok(signature)
   }
 
-  pub fn new_transaction(&self, receiever: &PublicKey, amount: u64) -> AppResult<Tx> {
+  pub fn new_tx(&self, receiever: &PublicKey, amount: u64) -> AppResult<Tx> {
     let mut tx = Tx {
       sender: self.public_key()?,
       receiver: receiever.clone(),
@@ -64,6 +65,14 @@ impl Wallet {
     };
     tx.signature = Some(self.sign_hashable(&tx)?);
     Ok(tx)
+  }
+
+  pub fn verify_tx_signature(&self, tx: &Tx) -> AppResult<()> {
+    if let Some(ref signature) = tx.signature {
+      self.verify(PADDING, &tx.hash().to_vec(), signature)?;
+      return Ok(());
+    }
+    Err("Tx has to be signed".into())
   }
 }
 
@@ -74,6 +83,16 @@ mod tests {
   #[tokio::test]
   async fn load_wallet_from_pem_test() -> AppResult<()> {
     let _wallet = Wallet::from_file("./rsakey.pem").await?;
+    Ok(())
+  }
+
+  #[tokio::test]
+  async fn verify_legit_tx() -> AppResult<()> {
+    let wallet = Wallet::from_file("./rsakey.pem").await?;
+    let tx = wallet.new_tx(&wallet.public_key()?, 1234)?;
+    let res = wallet.verify_tx_signature(&tx)?;
+    println!("{:?}", res);
+    // assert!(res.is_ok());
     Ok(())
   }
 }

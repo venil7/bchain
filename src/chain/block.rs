@@ -42,9 +42,15 @@ impl Block {
       parent_hash: Some(previous_block.hash()),
     }
   }
-  pub fn add_tx(&mut self, tx: &Tx) -> () {
+  pub fn add_tx(&mut self, tx: &Tx) {
     let key = format!("{}", tx.receiver.to_address());
     self.txs.insert(key, tx.clone());
+  }
+}
+
+impl Default for Block {
+  fn default() -> Self {
+    Self::new()
   }
 }
 
@@ -56,7 +62,7 @@ mod tests {
   #[tokio::test]
   async fn bloc_equality_test() -> AppResult<()> {
     let wallet = Wallet::from_file("./rsakey.pem").await?;
-    let tx = wallet.new_transaction(&wallet.public_key()?, 0)?;
+    let tx = wallet.new_tx(&wallet.public_key()?, 0)?;
     let genesis = Block::new();
     let mut block = Block::new_from_previous(&genesis);
     block.add_tx(&tx);

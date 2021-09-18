@@ -2,7 +2,7 @@
 extern crate diesel_migrations;
 
 use bchain::cli::Cli;
-use bchain::db::db::Db;
+use bchain::db::database::Db;
 use bchain::db::raw_block::NewRawBlock;
 use bchain::result::AppResult;
 use diesel_migrations::embed_migrations;

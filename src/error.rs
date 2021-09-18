@@ -40,7 +40,7 @@ impl From<hex::FromHexError> for AppError {
 }
 impl From<base58::FromBase58Error> for AppError {
   fn from(_: base58::FromBase58Error) -> Self {
-    AppError(format!("FromBase58Error"))
+    AppError("FromBase58Error".to_string())
   }
 }
 
