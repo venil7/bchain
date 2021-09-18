@@ -4,12 +4,11 @@ use crate::chain::public_key::PublicKey;
 use crate::error::AppError;
 use crate::result::AppResult;
 use pkcs8::FromPrivateKey;
-use rsa::hash::Hash;
-use rsa::PaddingScheme;
-use rsa::{PublicKey as RSAPublicKey, PublicKeyParts, RsaPrivateKey};
+use rsa::{PublicKeyParts, RsaPrivateKey};
 use std::convert::TryFrom;
 use std::ops::Deref;
 
+use super::public_key::PADDING;
 use super::signature::Signature;
 use super::tx::Tx;
 
@@ -25,9 +24,9 @@ impl Deref for Wallet {
   }
 }
 
-const PADDING: PaddingScheme = PaddingScheme::PKCS1v15Sign {
-  hash: Some(Hash::SHA2_256),
-};
+// const PADDING: PaddingScheme = PaddingScheme::PKCS1v15Sign {
+//   hash: Some(Hash::SHA2_256),
+// };
 
 impl Wallet {
   pub async fn from_file(pem_file_path: &str) -> AppResult<Wallet> {
@@ -40,8 +39,10 @@ impl Wallet {
   }
 
   pub fn public_key(&self) -> AppResult<PublicKey> {
-    let public_key_bytes = self.to_public_key().n().to_bytes_be();
-    let public_key = PublicKey::try_new(&public_key_bytes[..])?;
+    let internal_public_key = self.to_public_key();
+    let modulus_bytes = internal_public_key.n().to_bytes_be();
+    let exp_bytes = internal_public_key.e().to_bytes_be();
+    let public_key = PublicKey::try_new(&modulus_bytes[..], &exp_bytes[..])?;
     Ok(public_key)
   }
 
@@ -69,7 +70,7 @@ impl Wallet {
 
   pub fn verify_tx_signature(&self, tx: &Tx) -> AppResult<()> {
     if let Some(ref signature) = tx.signature {
-      self.verify(PADDING, &tx.hash().to_vec(), signature)?;
+      tx.sender.verify_signature(&tx.hash().to_vec(), signature)?;
       return Ok(());
     }
     Err("Tx has to be signed".into())
@@ -90,9 +91,17 @@ mod tests {
   async fn verify_legit_tx() -> AppResult<()> {
     let wallet = Wallet::from_file("./rsakey.pem").await?;
     let tx = wallet.new_tx(&wallet.public_key()?, 1234)?;
-    let res = wallet.verify_tx_signature(&tx)?;
-    println!("{:?}", res);
-    // assert!(res.is_ok());
+    wallet.verify_tx_signature(&tx)?;
+    Ok(())
+  }
+
+  #[tokio::test]
+  async fn verify_legit_tx_from_another_wallet() -> AppResult<()> {
+    let wallet = Wallet::from_file("./rsakey.pem").await?;
+    let wallet1 = Wallet::from_file("./rsakey1.pem").await?;
+    let tx = wallet.new_tx(&wallet1.public_key()?, 1234)?;
+    wallet.verify_tx_signature(&tx)?;
+    wallet1.verify_tx_signature(&tx)?;
     Ok(())
   }
 }
