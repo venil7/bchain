@@ -11,7 +11,7 @@ pub struct Cli {
   pub listen: String,
   #[structopt(name = "wallet", long = "--wallet", default_value = DEFAULT_WALLET)]
   pub wallet: String,
-  #[structopt(name = "database", long = "--database", default_value = DEFAULT_WALLET)]
+  #[structopt(name = "database", long = "--database", default_value = DEFAULT_DATABASE)]
   pub database: String,
   #[structopt(name = "peer", long = "--peer")]
   pub peer: Option<String>,

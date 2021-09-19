@@ -10,6 +10,7 @@ pub struct Block {
   pub timestamp: i64,
   pub txs: HashMap<String, Tx>,
   pub parent_hash: Option<HashDigest>,
+  pub nonce: Vec<u8>,
 }
 
 impl AsBytes for Block {
@@ -21,6 +22,7 @@ impl AsBytes for Block {
       res.append(&mut tx.as_bytes())
     }
     res.append(&mut self.parent_hash.as_bytes());
+    res.append(&mut self.nonce.clone());
     res
   }
 }
@@ -33,6 +35,7 @@ impl Block {
       timestamp: chrono::Utc::now().timestamp(),
       txs: Default::default(),
       parent_hash: None,
+      nonce: vec![],
     }
   }
   pub fn new_from_previous(previous_block: &Block) -> Block {
@@ -40,6 +43,7 @@ impl Block {
       timestamp: chrono::Utc::now().timestamp(),
       txs: Default::default(),
       parent_hash: Some(previous_block.hash()),
+      nonce: vec![],
     }
   }
   pub fn add_tx(&mut self, tx: &Tx) {
