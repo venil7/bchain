@@ -2,6 +2,7 @@ use async_std::io;
 use bchain::chain::wallet::Wallet;
 use bchain::cli::Cli;
 use bchain::error::AppError;
+use bchain::network::swarm::create_swarm;
 use bchain::result::AppResult;
 use futures::prelude::*;
 use futures::select;
@@ -9,12 +10,9 @@ use futures::stream::StreamExt;
 use libp2p::gossipsub::error::GossipsubHandlerError;
 use libp2p::gossipsub::subscription_filter::AllowAllSubscriptionFilter;
 use libp2p::gossipsub::IdentityTransform;
-use libp2p::gossipsub::{
-  self, Gossipsub, GossipsubEvent, IdentTopic as Topic, MessageAuthenticity, ValidationMode,
-};
+use libp2p::gossipsub::{Gossipsub, GossipsubEvent, IdentTopic as Topic};
 use libp2p::{identity, swarm::SwarmEvent, PeerId};
 use log::{error, info};
-use std::time::Duration;
 use structopt::StructOpt;
 
 #[tokio::main]
@@ -35,27 +33,7 @@ async fn main() -> AppResult<()> {
   info!("peers {:?}", cli.peers);
 
   //---------------
-  let transport = libp2p::development_transport(local_peer_key.clone()).await?;
-  let mut swarm = {
-    // Set a custom gossipsub
-    let gossipsub_config = gossipsub::GossipsubConfigBuilder::default()
-      .heartbeat_interval(Duration::from_secs(10)) // This is set to aid debugging by not cluttering the log space
-      .validation_mode(ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message signing)
-      .build()
-      .expect("Valid config");
-    // build a gossipsub network behaviour
-    let mut gossipsub: gossipsub::Gossipsub = gossipsub::Gossipsub::new(
-      MessageAuthenticity::Signed(local_peer_key),
-      gossipsub_config,
-    )
-    .expect("Correct configuration");
-
-    // subscribes to our topic
-    gossipsub.subscribe(&topic).unwrap();
-
-    // build the swarm
-    libp2p::Swarm::new(transport, gossipsub, local_peer_id)
-  };
+  let mut swarm = create_swarm(&local_peer_key, &topic).await?;
 
   // Listen on all interfaces and whatever port the OS assigns
   // swarm.listen_on(cli.listen.parse().unwrap()).unwrap();
