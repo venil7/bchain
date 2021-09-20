@@ -5,28 +5,30 @@ authors = ["darkruby <art@darkruby.co.uk>"]
 edition = "2018"
 
 [[bin]] 
-name = "wallet"
-path = "src/bin/wallet.rs"
+name = "main"
+path = "src/bin/main.rs"
 
 [[bin]] 
 name = "diesel"
 path = "src/bin/diesel.rs"
 
 [dependencies]
-libp2p="*"
 log="0.4"
 bytes="1"
 rsa="0.5"
 hex="0.4"
+libp2p="*"
 rand ="0.8"
-base58 = "0.1"
 sha2 = "0.9"
 dotenv="0.15"
+base58 = "0.1"
 futures = "0.3"
+once_cell = "*"
 byteorder="1.4"
 structopt = "0.3"
 env_logger = "0.9"
 serde_json = "1.0"
+pretty_env_logger = "0.4"
 serde = {version="1", features=["derive"]}
 tokio = { version = "1", features = ["full"] }
 pkcs8={version="0.7", features=["alloc", "pem"]}

@@ -11,6 +11,7 @@ use structopt::StructOpt;
 #[async_std::main]
 async fn main() -> AppResult<()> {
   embed_migrations!();
+  dotenv::dotenv()?;
   let cli = Cli::from_args();
 
   let mut db = Db::new(&cli.database)?;

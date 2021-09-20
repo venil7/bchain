@@ -1,3 +1,4 @@
+use libp2p::gossipsub::error::PublishError;
 use std::error::Error;
 
 pub type DynError = dyn Error + Send + Sync + 'static;
@@ -41,6 +42,11 @@ impl From<hex::FromHexError> for AppError {
 impl From<base58::FromBase58Error> for AppError {
   fn from(_: base58::FromBase58Error) -> Self {
     AppError("FromBase58Error".to_string())
+  }
+}
+impl From<PublishError> for AppError {
+  fn from(_: PublishError) -> Self {
+    AppError("PublishError".to_string())
   }
 }
 

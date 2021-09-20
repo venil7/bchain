@@ -3,7 +3,7 @@ use crate::chain::digest::Hashable;
 use crate::chain::public_key::PublicKey;
 use crate::error::AppError;
 use crate::result::AppResult;
-use pkcs8::FromPrivateKey;
+use pkcs8::{FromPrivateKey, PrivateKeyDocument, ToPrivateKey};
 use rsa::{PublicKeyParts, RsaPrivateKey};
 use std::convert::TryFrom;
 use std::ops::Deref;
@@ -23,10 +23,6 @@ impl Deref for Wallet {
     &self.private_key
   }
 }
-
-// const PADDING: PaddingScheme = PaddingScheme::PKCS1v15Sign {
-//   hash: Some(Hash::SHA2_256),
-// };
 
 impl Wallet {
   pub async fn from_file(pem_file_path: &str) -> AppResult<Wallet> {
@@ -74,6 +70,11 @@ impl Wallet {
       return Ok(());
     }
     Err("Tx has to be signed".into())
+  }
+
+  pub fn to_pkcs8_der(&self) -> AppResult<Vec<u8>> {
+    let der: PrivateKeyDocument = self.private_key.to_pkcs8_der()?;
+    Ok(der.as_ref().to_vec())
   }
 }
 
