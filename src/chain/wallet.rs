@@ -82,13 +82,13 @@ impl Wallet {
 mod tests {
   use super::*;
 
-  #[tokio::test]
+  #[async_std::test]
   async fn load_wallet_from_pem_test() -> AppResult<()> {
     let _wallet = Wallet::from_file("./rsakey.pem").await?;
     Ok(())
   }
 
-  #[tokio::test]
+  #[async_std::test]
   async fn verify_legit_tx() -> AppResult<()> {
     let wallet = Wallet::from_file("./rsakey.pem").await?;
     let tx = wallet.new_tx(&wallet.public_key()?, 1234)?;
@@ -96,7 +96,7 @@ mod tests {
     Ok(())
   }
 
-  #[tokio::test]
+  #[async_std::test]
   async fn verify_legit_tx_from_another_wallet() -> AppResult<()> {
     let wallet = Wallet::from_file("./rsakey.pem").await?;
     let wallet1 = Wallet::from_file("./rsakey1.pem").await?;

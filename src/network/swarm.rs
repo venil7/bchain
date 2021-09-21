@@ -1,5 +1,5 @@
-use std::time::Duration;
-
+use crate::result::AppResult;
+use async_std::io::{self, BufReader, Lines, Stdin};
 use libp2p::{
   gossipsub::{
     self, subscription_filter::AllowAllSubscriptionFilter, Gossipsub, IdentTopic as Topic,
@@ -8,8 +8,7 @@ use libp2p::{
   identity::Keypair,
   PeerId, Swarm,
 };
-
-use crate::result::AppResult;
+use std::time::Duration;
 
 pub async fn create_swarm(
   local_peer_key: &Keypair,
@@ -33,4 +32,9 @@ pub async fn create_swarm(
   gossipsub.subscribe(&topic).unwrap();
 
   Ok(libp2p::Swarm::new(transport, gossipsub, local_peer_id))
+}
+
+pub struct Node {
+  swarm: Swarm<Gossipsub<IdentityTransform, AllowAllSubscriptionFilter>>,
+  cmd_lines: Lines<BufReader<Stdin>>,
 }

@@ -30,7 +30,7 @@ mod tests {
   use super::*;
   use crate::{chain::wallet::Wallet, result::AppResult};
 
-  #[tokio::test]
+  #[async_std::test]
   async fn verify_transaction_serializaton() -> AppResult<()> {
     let wallet = Wallet::from_file("./rsakey.pem").await?;
 

@@ -15,7 +15,7 @@ use libp2p::{identity, swarm::SwarmEvent, PeerId};
 use log::{error, info};
 use structopt::StructOpt;
 
-#[tokio::main]
+#[async_std::main]
 async fn main() -> AppResult<()> {
   dotenv::dotenv()?;
   pretty_env_logger::init();
@@ -34,9 +34,6 @@ async fn main() -> AppResult<()> {
 
   //---------------
   let mut swarm = create_swarm(&local_peer_key, &topic).await?;
-
-  // Listen on all interfaces and whatever port the OS assigns
-  // swarm.listen_on(cli.listen.parse().unwrap()).unwrap();
   swarm.listen_on(cli.listen.parse()?)?;
 
   // Reach out to another node if specified
@@ -64,7 +61,6 @@ async fn main() -> AppResult<()> {
       complete => break,
     }
   }
-  //---------------
 
   Ok(())
 }
@@ -87,10 +83,8 @@ fn handle_swarm_event(event: SwarmEvent<GossipsubEvent, GossipsubHandlerError>) 
       message_id: _,
       message,
       propagation_source: peer_id,
-    }) => info!("{:?}: {}", peer_id, String::from_utf8_lossy(&message.data),),
-    SwarmEvent::NewListenAddr { address, .. } => {
-      info!("Listening on {:?}", address);
-    }
-    _ => {}
+    }) => info!("{:?}: {}", peer_id, String::from_utf8_lossy(&message.data)),
+    SwarmEvent::NewListenAddr { address, .. } => info!("Listening on {:?}", address),
+    _ => (),
   }
 }
