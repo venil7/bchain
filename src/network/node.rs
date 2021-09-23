@@ -30,7 +30,7 @@ async fn create_swarm(
     gossipsub_config,
   )?;
 
-  gossipsub.subscribe(&topic).unwrap();
+  gossipsub.subscribe(topic).unwrap();
 
   Ok(libp2p::Swarm::new(transport, gossipsub, local_peer_id))
 }

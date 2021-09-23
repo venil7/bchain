@@ -38,6 +38,7 @@ impl Block {
       nonce: vec![],
     }
   }
+
   pub fn new_from_previous(previous_block: &Block) -> Block {
     Block {
       timestamp: chrono::Utc::now().timestamp(),
@@ -46,6 +47,7 @@ impl Block {
       nonce: vec![],
     }
   }
+
   pub fn add_tx(&mut self, tx: &Tx) {
     let key = format!("{}", tx.receiver.to_address());
     self.txs.insert(key, tx.clone());

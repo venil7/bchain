@@ -38,7 +38,10 @@ impl Wallet {
     let internal_public_key = self.to_public_key();
     let modulus_bytes = internal_public_key.n().to_bytes_be();
     let exp_bytes = internal_public_key.e().to_bytes_be();
-    let public_key = PublicKey::try_new(&modulus_bytes[..], &exp_bytes[..])?;
+    let mut bytes = vec![];
+    bytes.extend_from_slice(&modulus_bytes);
+    bytes.extend_from_slice(&exp_bytes);
+    let public_key = PublicKey::try_new(&bytes)?;
     Ok(public_key)
   }
 

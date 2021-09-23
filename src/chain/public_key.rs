@@ -14,7 +14,7 @@ pub const PADDING: PaddingScheme = PaddingScheme::PKCS1v15Sign {
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PublicKey(Vec<u8>, Vec<u8>);
+pub struct PublicKey(Vec<u8>);
 
 impl Deref for PublicKey {
   type Target = Vec<u8>;
@@ -32,37 +32,35 @@ impl DerefMut for PublicKey {
 
 impl Default for PublicKey {
   fn default() -> Self {
-    PublicKey(vec![0u8; PUBLIC_KEY_LENGTH], vec![])
+    PublicKey(vec![0u8; PUBLIC_KEY_LENGTH])
   }
 }
 
 impl AsBytes for PublicKey {
   fn as_bytes(&self) -> Vec<u8> {
-    let mut res = vec![];
-    res.append(&mut self.0.to_vec());
-    res.append(&mut self.1.to_vec());
-    res
+    self.0.to_vec()
   }
 }
 
 impl PublicKey {
-  pub fn try_new(modulus: &[u8], exponent: &[u8]) -> AppResult<Self> {
-    if modulus.len() == PUBLIC_KEY_LENGTH {
-      Ok(PublicKey(modulus.to_vec(), exponent.to_vec()))
+  pub fn try_new(bytes: &[u8]) -> AppResult<Self> {
+    if bytes.len() >= PUBLIC_KEY_LENGTH {
+      Ok(PublicKey(bytes.to_vec()))
     } else {
       Err(Box::new(AppError::new(&format!(
-        "PublicKey has to be {} chars long",
+        "PublicKey has to be at least {} chars long",
         PUBLIC_KEY_LENGTH
       ))))
     }
   }
+
   pub fn to_address(&self) -> Address {
-    Address::from_public_key(self)
+    Address::new(self)
   }
 
   fn int_public_key(&self) -> AppResult<RsaPublicKey> {
-    let modulus = BigUint::from_bytes_be(&self.0);
-    let exponent = BigUint::from_bytes_be(&self.1);
+    let modulus = BigUint::from_bytes_be(&self.0[0..PUBLIC_KEY_LENGTH]);
+    let exponent = BigUint::from_bytes_be(&self.0[PUBLIC_KEY_LENGTH..]);
     let int_public_key = RsaPublicKey::new(modulus, exponent)?;
     Ok(int_public_key)
   }
