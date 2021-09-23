@@ -40,13 +40,13 @@ impl From<hex::FromHexError> for AppError {
   }
 }
 impl From<base58::FromBase58Error> for AppError {
-  fn from(_: base58::FromBase58Error) -> Self {
-    AppError("FromBase58Error".to_string())
+  fn from(e: base58::FromBase58Error) -> Self {
+    AppError(format!("{:?}", e))
   }
 }
 impl From<PublishError> for AppError {
-  fn from(_: PublishError) -> Self {
-    AppError("PublishError".to_string())
+  fn from(e: PublishError) -> Self {
+    AppError(format!("{:?}", e))
   }
 }
 
