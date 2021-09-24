@@ -1,4 +1,4 @@
-use crate::chain::digest::AsBytes;
+use crate::chain::hash_digest::AsBytes;
 use crate::error::AppError;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;

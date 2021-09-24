@@ -1,5 +1,5 @@
 use crate::chain::address::Address;
-use crate::chain::digest::AsBytes;
+use crate::chain::hash_digest::AsBytes;
 use crate::error::AppError;
 use crate::result::AppResult;
 use rsa::hash::Hash;

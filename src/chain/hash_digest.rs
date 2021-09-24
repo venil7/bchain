@@ -5,6 +5,7 @@ use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
 use std::convert::TryFrom;
+use std::hash::Hash;
 use std::mem;
 use std::ops::Deref;
 use std::ops::DerefMut;
@@ -13,7 +14,7 @@ use crate::error::AppError;
 
 const HASH_LENGTH: usize = 32;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct HashDigest([u8; HASH_LENGTH]);
 
 impl Display for HashDigest {
@@ -98,9 +99,14 @@ impl AsBytes for u64 {
     bs.to_vec()
   }
 }
+impl AsBytes for Vec<u8> {
+  fn as_bytes(&self) -> Vec<u8> {
+    self.to_vec()
+  }
+}
 
 pub trait Hashable: AsBytes {
-  fn hash(&self) -> HashDigest {
+  fn hash_digest(&self) -> HashDigest {
     let digest: Vec<u8> = Sha256::digest(&self.as_bytes()).into_iter().collect();
     digest.into()
   }
@@ -113,6 +119,7 @@ impl AsBytes for String {
 }
 
 impl Hashable for String {}
+impl Hashable for Vec<u8> {}
 
 #[cfg(test)]
 mod tests {
@@ -130,11 +137,19 @@ mod tests {
   #[test]
   fn string_as_hash_test() -> AppResult<()> {
     let str = String::from("abc");
-    let res = str.hash();
+    let res = str.hash_digest();
     assert_eq!(
       format!("{}", res),
       "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
     );
+    Ok(())
+  }
+
+  #[test]
+  fn hash_equality() -> AppResult<()> {
+    let h1 = String::from("abc").hash_digest();
+    let h2 = String::from("abc").hash_digest();
+    assert_eq!(h1, h2);
     Ok(())
   }
 }

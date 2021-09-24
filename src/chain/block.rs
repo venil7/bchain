@@ -1,6 +1,6 @@
-use super::digest::HashDigest;
-use crate::chain::digest::AsBytes;
-use crate::chain::digest::Hashable;
+use super::hash_digest::HashDigest;
+use crate::chain::hash_digest::AsBytes;
+use crate::chain::hash_digest::Hashable;
 use crate::chain::tx::Tx;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -16,13 +16,13 @@ pub struct Block {
 impl AsBytes for Block {
   fn as_bytes(&self) -> std::vec::Vec<u8> {
     let mut res = vec![];
-    res.append(&mut self.timestamp.as_bytes());
+    res.extend_from_slice(&self.timestamp.as_bytes());
     let txs: Vec<Tx> = self.txs.iter().map(|(_, tx)| tx.clone()).collect();
     for tx in txs {
-      res.append(&mut tx.as_bytes())
+      res.extend_from_slice(&tx.as_bytes())
     }
-    res.append(&mut self.parent_hash.as_bytes());
-    res.append(&mut self.nonce.clone());
+    res.extend_from_slice(&self.parent_hash.as_bytes());
+    res.extend_from_slice(&self.nonce.clone());
     res
   }
 }
@@ -43,13 +43,13 @@ impl Block {
     Block {
       timestamp: chrono::Utc::now().timestamp(),
       txs: Default::default(),
-      parent_hash: Some(previous_block.hash()),
+      parent_hash: Some(previous_block.hash_digest()),
       nonce: vec![],
     }
   }
 
-  pub fn add_tx(&mut self, tx: &Tx) {
-    let key = format!("{}", tx.receiver.to_address());
+  pub fn add(&mut self, tx: &Tx) {
+    let key = tx.hash_digest().to_string();
     self.txs.insert(key, tx.clone());
   }
 }
@@ -68,13 +68,14 @@ mod tests {
   #[async_std::test]
   async fn bloc_equality_test() -> AppResult<()> {
     let wallet = Wallet::from_file("./rsakey.pem").await?;
-    let tx = wallet.new_tx(&wallet.public_key()?, 0)?;
     let genesis = Block::new();
     let mut block = Block::new_from_previous(&genesis);
-    block.add_tx(&tx);
-    let hash1 = block.hash();
-    let block: Block = serde_json::from_str(&serde_json::to_string(&block)?)?;
-    let hash2 = block.hash();
+    let tx = Tx::new(&wallet, wallet.public_key(), 1234)?;
+    block.add(&tx);
+    let hash1 = block.hash_digest();
+    let json = serde_json::to_string(&block)?;
+    let block: Block = serde_json::from_str(&json)?;
+    let hash2 = block.hash_digest();
     assert_eq!(hash1, hash2);
     Ok(())
   }

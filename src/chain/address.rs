@@ -1,4 +1,4 @@
-use crate::chain::digest::AsBytes;
+use crate::chain::hash_digest::AsBytes;
 use crate::chain::public_key::PublicKey;
 use crate::error::AppError;
 use base58::FromBase58;
