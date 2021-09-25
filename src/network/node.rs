@@ -1,4 +1,7 @@
-use crate::{chain::wallet::Wallet, cli::Cli, error::AppError, result::AppResult};
+use crate::{
+  chain::wallet::Wallet, cli::Cli, error::AppError, network::protocol::BchainRequest,
+  result::AppResult,
+};
 use async_std::io;
 use futures::{prelude::*, select};
 use libp2p::{
@@ -12,6 +15,8 @@ use libp2p::{
 };
 use log::{error, info};
 use std::time::Duration;
+
+use super::protocol::Frame;
 
 async fn create_swarm(
   local_peer_key: &Keypair,
@@ -37,7 +42,7 @@ async fn create_swarm(
 
 pub struct Node {
   cli: Cli,
-  wallet: Wallet,
+  _wallet: Wallet,
   topic: Topic,
   swarm: Swarm<Gossipsub<IdentityTransform, AllowAllSubscriptionFilter>>,
 }
@@ -55,7 +60,7 @@ impl Node {
     Ok(Node {
       cli: cli.clone(),
       topic,
-      wallet,
+      _wallet: wallet,
       swarm,
     })
   }
@@ -69,7 +74,9 @@ impl Node {
 
     loop {
       select! {
-        event = self.swarm.next().fuse() => self.handle_swarm_event(event.unwrap()),
+        event = self.swarm.next().fuse() => {
+          self.handle_swarm_event(event.unwrap())?;
+        },
         cmd_line = cmd_lines.next().fuse() => {
           if let Some(Ok(ref line)) = cmd_line {
             self.handle_cmd_event(line.as_str())?;
@@ -96,25 +103,43 @@ impl Node {
   }
 
   fn handle_cmd_event(&mut self, cmd: &str) -> AppResult<()> {
+    let frame: Frame = cmd.parse()?;
+    let bytes = serde_json::to_vec(&frame)?;
     let publish_result = self
       .swarm
       .behaviour_mut()
-      .publish(self.topic.clone(), cmd.as_bytes());
+      .publish(self.topic.clone(), bytes);
+
     match publish_result {
       Ok(_) => Ok(()),
       Err(err) => Err(Box::new(AppError::from(err))),
     }
   }
 
-  fn handle_swarm_event(&mut self, event: SwarmEvent<GossipsubEvent, GossipsubHandlerError>) {
+  fn handle_swarm_event(
+    &mut self,
+    event: SwarmEvent<GossipsubEvent, GossipsubHandlerError>,
+  ) -> AppResult<()> {
     match event {
       SwarmEvent::Behaviour(GossipsubEvent::Message {
-        message_id: _,
         message,
         propagation_source: peer_id,
-      }) => info!("{:?}: {}", peer_id, String::from_utf8_lossy(&message.data)),
+        ..
+      }) => {
+        // info!("{:?}: {}", peer_id, String::from_utf8_lossy(&message.data));
+        let frame: Frame = serde_json::from_slice(&message.data)?;
+        self.handle_bchain_event(frame);
+      }
       SwarmEvent::NewListenAddr { address, .. } => info!("Listening on {:?}", address),
       _ => (),
+    }
+    Ok(())
+  }
+
+  fn handle_bchain_event(&mut self, frame: Frame) {
+    match frame {
+      Frame::BchainRequest(BchainRequest::Msg(msg)) => info!("{}", msg),
+      _ => info!("unhandled event"),
     }
   }
 }
