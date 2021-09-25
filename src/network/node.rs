@@ -123,7 +123,7 @@ impl Node {
     match event {
       SwarmEvent::Behaviour(GossipsubEvent::Message {
         message,
-        propagation_source: peer_id,
+        // propagation_source: peer_id,
         ..
       }) => {
         // info!("{:?}: {}", peer_id, String::from_utf8_lossy(&message.data));

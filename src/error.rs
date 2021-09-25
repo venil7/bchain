@@ -5,7 +5,6 @@ pub type DynError = dyn Error + Send + Sync + 'static;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct AppError(String);
-
 impl std::error::Error for AppError {}
 impl std::fmt::Display for AppError {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
