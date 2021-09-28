@@ -1,8 +1,12 @@
+use crate::cli::Cli;
 use crate::db::raw_block::NewRawBlock;
 use crate::db::schema::blocks;
 use crate::result::AppResult;
 use diesel::prelude::*;
 use diesel::SqliteConnection;
+use diesel_migrations::embed_migrations;
+
+embed_migrations!();
 
 pub struct Db {
   connection: SqliteConnection,
@@ -24,4 +28,10 @@ impl Db {
       .execute(&self.connection)?;
     Ok(())
   }
+}
+
+pub fn create_db(cli: &Cli) -> AppResult<Db> {
+  let db = Db::new(&cli.database)?;
+  embedded_migrations::run(db.raw_connection()?)?;
+  Ok(db)
 }

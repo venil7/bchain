@@ -25,9 +25,5 @@ async fn main() -> AppResult<()> {
   };
 
   db.insert_block(&block)?;
-  // conn.execute("select * from blocks;")?;
-
-  // insert_block(&conn)?;
-  // print_users_holdings(&conn)?;
   Ok(())
 }

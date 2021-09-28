@@ -2,11 +2,11 @@ use super::protocol::Frame;
 use crate::{
   chain::wallet::Wallet,
   cli::Cli,
+  db::database::{create_db, Db},
   network::{protocol::BchainRequest, user_command::UserCommand},
   result::AppResult,
 };
 use async_std::io;
-// use async_std::prelude::FutureExt;
 use futures::{prelude::*, select};
 use libp2p::{
   gossipsub::{
@@ -44,6 +44,7 @@ async fn create_swarm(
 
 pub struct Node {
   cli: Cli,
+  _db: Db,
   _wallet: Wallet,
   topic: Topic,
   swarm: Swarm<Gossipsub<IdentityTransform, AllowAllSubscriptionFilter>>,
@@ -53,16 +54,19 @@ impl Node {
   pub async fn new(cli: &Cli) -> AppResult<Node> {
     let topic = Topic::new(&cli.net);
 
-    let wallet = Wallet::from_file(&cli.wallet).await?;
-    let mut rsa_pkcs8 = wallet.to_pkcs8_der()?;
+    let _wallet = Wallet::from_file(&cli.wallet).await?;
+    let mut rsa_pkcs8 = _wallet.to_pkcs8_der()?;
     let local_peer_key = identity::Keypair::rsa_from_pkcs8(&mut rsa_pkcs8)?;
+
+    let _db = create_db(cli)?;
 
     let swarm = create_swarm(&local_peer_key, &topic).await?;
 
     Ok(Node {
       cli: cli.clone(),
       topic,
-      _wallet: wallet,
+      _db,
+      _wallet,
       swarm,
     })
   }
