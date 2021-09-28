@@ -1,8 +1,12 @@
+use super::protocol::Frame;
 use crate::{
-  chain::wallet::Wallet, cli::Cli, error::AppError, network::protocol::BchainRequest,
+  chain::wallet::Wallet,
+  cli::Cli,
+  network::{protocol::BchainRequest, user_command::UserCommand},
   result::AppResult,
 };
 use async_std::io;
+// use async_std::prelude::FutureExt;
 use futures::{prelude::*, select};
 use libp2p::{
   gossipsub::{
@@ -13,10 +17,8 @@ use libp2p::{
   swarm::SwarmEvent,
   PeerId, Swarm,
 };
-use log::{error, info};
+use log::{error, info, warn};
 use std::time::Duration;
-
-use super::protocol::Frame;
 
 async fn create_swarm(
   local_peer_key: &Keypair,
@@ -75,11 +77,12 @@ impl Node {
     loop {
       select! {
         event = self.swarm.next().fuse() => {
-          self.handle_swarm_event(event.unwrap())?;
+          self.handle_swarm_event(event.unwrap()).await?;
         },
         cmd_line = cmd_lines.next().fuse() => {
           if let Some(Ok(ref line)) = cmd_line {
-            self.handle_cmd_event(line.as_str())?;
+            let cmd: UserCommand = line.parse()?;
+            self.handle_cmd_event(&cmd).await?;
           }
         },
         complete => break,
@@ -95,38 +98,31 @@ impl Node {
       match to_dial {
         Ok(to_dial) => match self.swarm.dial_addr(to_dial) {
           Ok(_) => info!("Dialed {:?}", peer),
-          Err(e) => error!("Dialing {:?} failed: {:?}", peer, e),
+          Err(e) => warn!("Dialing {:?} failed: {:?}", peer, e),
         },
         Err(err) => error!("Failed to parse address to dial: {:?}", err),
       }
     }
   }
 
-  fn handle_cmd_event(&mut self, cmd: &str) -> AppResult<()> {
-    let frame: Frame = cmd.parse()?;
-    let bytes = serde_json::to_vec(&frame)?;
-    let publish_result = self
-      .swarm
-      .behaviour_mut()
-      .publish(self.topic.clone(), bytes);
-
-    match publish_result {
-      Ok(_) => Ok(()),
-      Err(err) => Err(Box::new(AppError::from(err))),
+  async fn handle_cmd_event(&mut self, cmd: &UserCommand) -> AppResult<()> {
+    match cmd {
+      UserCommand::Msg(msg) => {
+        let msg = Frame::BchainRequest(BchainRequest::Msg(msg.into()));
+        self.publish_to_swarm(&msg).await?;
+      }
+      UserCommand::Tx { .. } => info!("currently unsupported"),
+      _ => warn!("unrecognized user input"),
     }
+    Ok(())
   }
 
-  fn handle_swarm_event(
+  async fn handle_swarm_event(
     &mut self,
     event: SwarmEvent<GossipsubEvent, GossipsubHandlerError>,
   ) -> AppResult<()> {
     match event {
-      SwarmEvent::Behaviour(GossipsubEvent::Message {
-        message,
-        // propagation_source: peer_id,
-        ..
-      }) => {
-        // info!("{:?}: {}", peer_id, String::from_utf8_lossy(&message.data));
+      SwarmEvent::Behaviour(GossipsubEvent::Message { message, .. }) => {
         let frame: Frame = serde_json::from_slice(&message.data)?;
         self.handle_bchain_event(frame);
       }
@@ -141,5 +137,18 @@ impl Node {
       Frame::BchainRequest(BchainRequest::Msg(msg)) => info!("{}", msg),
       _ => info!("unhandled event"),
     }
+  }
+
+  async fn publish_to_swarm(&mut self, frame: &Frame) -> AppResult<()> {
+    let bytes = serde_json::to_vec(frame)?;
+    let publish_result = self
+      .swarm
+      .behaviour_mut()
+      .publish(self.topic.clone(), bytes);
+
+    if let Err(e) = publish_result {
+      error!("{:?}", e);
+    }
+    Ok(())
   }
 }
