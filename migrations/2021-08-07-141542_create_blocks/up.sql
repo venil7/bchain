@@ -1,6 +1,5 @@
 CREATE TABLE blocks (
   id INTEGER NOT NULL PRIMARY KEY,
   block BLOB NOT NULL,
-  -- hash VARCHAR NOT NULL,
   created TIMESTAMP NOT NULL
 );

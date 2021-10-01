@@ -1,29 +1,30 @@
-#[macro_use]
-extern crate diesel_migrations;
-
+use bchain::chain::block::Block;
 use bchain::cli::Cli;
-use bchain::db::database::Db;
-use bchain::db::raw_block::NewRawBlock;
+use bchain::db::database::create_db;
 use bchain::result::AppResult;
-use diesel_migrations::embed_migrations;
+use log::{info, warn};
 use structopt::StructOpt;
 
 #[async_std::main]
 async fn main() -> AppResult<()> {
-  embed_migrations!();
   dotenv::dotenv()?;
+  pretty_env_logger::init();
+
   let cli = Cli::from_args();
+  let mut db = create_db(&cli)?;
 
-  let mut db = Db::new(&cli.database)?;
-  embedded_migrations::run(db.raw_connection()?)?;
+  info!("connected!");
 
-  println!("connected!");
+  let latest = db.latest_block()?;
+  if let Some(latest) = latest {
+    info!("latest: {:?}", latest);
+    let block = Block::new_from_previous(&latest);
+    db.commit_block(block)?;
+  } else {
+    warn!("no blocks, adding genesis");
+    let genesis = Block::new();
+    db.commit_block(genesis)?;
+  }
 
-  let block = NewRawBlock {
-    block: b"some long string goes here".to_vec(),
-    created: chrono::Utc::now().naive_utc(),
-  };
-
-  db.insert_block(&block)?;
   Ok(())
 }
