@@ -7,6 +7,7 @@ use crate::{
   result::AppResult,
 };
 use async_std::io;
+use async_std::sync::RwLock;
 use futures::{prelude::*, select};
 use libp2p::{
   gossipsub::{
@@ -44,37 +45,42 @@ async fn create_swarm(
 
 pub struct Node {
   cli: Cli,
-  _db: Db,
-  _wallet: Wallet,
+  #[allow(dead_code)]
+  db: Db,
+  #[allow(dead_code)]
+  wallet: Wallet,
   topic: Topic,
   swarm: Swarm<Gossipsub<IdentityTransform, AllowAllSubscriptionFilter>>,
+  num_peers: RwLock<i32>,
 }
 
 impl Node {
   pub async fn new(cli: &Cli) -> AppResult<Node> {
     let topic = Topic::new(&cli.net);
 
-    let _wallet = Wallet::from_file(&cli.wallet).await?;
-    let mut rsa_pkcs8 = _wallet.to_pkcs8_der()?;
+    let wallet = Wallet::from_file(&cli.wallet).await?;
+    let mut rsa_pkcs8 = wallet.to_pkcs8_der()?;
     let local_peer_key = identity::Keypair::rsa_from_pkcs8(&mut rsa_pkcs8)?;
 
-    let _db = create_db(cli)?;
+    let db = create_db(cli)?;
 
     let swarm = create_swarm(&local_peer_key, &topic).await?;
-
+    let cli = cli.clone();
     Ok(Node {
-      cli: cli.clone(),
+      cli,
       topic,
-      _db,
-      _wallet,
+      db,
+      wallet,
       swarm,
+      num_peers: RwLock::new(0),
     })
   }
 
   pub async fn run(&mut self) -> AppResult<()> {
     self.swarm.listen_on(self.cli.listen.parse()?)?;
 
-    self.dial_peers();
+    let peers = &self.cli.peers.clone()[..];
+    self.dial_peers(&peers);
 
     let mut cmd_lines = io::BufReader::new(io::stdin()).lines();
 
@@ -86,7 +92,7 @@ impl Node {
         cmd_line = cmd_lines.next().fuse() => {
           if let Some(Ok(ref line)) = cmd_line {
             let cmd: UserCommand = line.parse()?;
-            self.handle_cmd_event(&cmd).await?;
+            self.handle_user_command(&cmd).await?;
           }
         },
         complete => break,
@@ -96,8 +102,8 @@ impl Node {
     Ok(())
   }
 
-  fn dial_peers(&mut self) {
-    for peer in self.cli.peers.iter() {
+  fn dial_peers(&mut self, peers: &[String]) {
+    for peer in peers {
       let to_dial = peer.clone().parse();
       match to_dial {
         Ok(to_dial) => match self.swarm.dial_addr(to_dial) {
@@ -109,14 +115,20 @@ impl Node {
     }
   }
 
-  async fn handle_cmd_event(&mut self, cmd: &UserCommand) -> AppResult<()> {
+  async fn handle_user_command(&mut self, cmd: &UserCommand) -> AppResult<()> {
     match cmd {
       UserCommand::Msg(msg) => {
         let msg = Frame::BchainRequest(BchainRequest::Msg(msg.into()));
         self.publish_to_swarm(&msg).await?;
       }
-      UserCommand::Tx { .. } => info!("currently unsupported"),
-      _ => warn!("unrecognized user input"),
+      UserCommand::Peers => {
+        self.display_peers().await;
+      }
+      UserCommand::Dial(peers) => {
+        self.dial_peers(peers);
+      }
+      UserCommand::Unrecognized => warn!("Unrecognized user input"),
+      command => warn!("Currently unsupported: {:?}", command),
     }
     Ok(())
   }
@@ -131,6 +143,8 @@ impl Node {
         self.handle_bchain_event(frame);
       }
       SwarmEvent::NewListenAddr { address, .. } => info!("Listening on {:?}", address),
+      SwarmEvent::ConnectionEstablished { .. } => self.handle_peer(1).await?,
+      SwarmEvent::ConnectionClosed { .. } => self.handle_peer(-1).await?,
       _ => (),
     }
     Ok(())
@@ -154,5 +168,16 @@ impl Node {
       error!("{:?}", e);
     }
     Ok(())
+  }
+
+  async fn handle_peer(&mut self, num: i32) -> AppResult<()> {
+    let mut num_peers = self.num_peers.write().await;
+    *num_peers += num;
+    Ok(())
+  }
+
+  async fn display_peers(&self) {
+    let num_peers = self.num_peers.read().await;
+    info!("Peers: {}", num_peers);
   }
 }

@@ -1,8 +1,9 @@
 use nom::{
   branch::alt,
-  bytes::complete::tag,
-  character::complete::{alphanumeric1, digit1, space1},
+  bytes::complete::{is_not, tag},
+  character::complete::{alphanumeric1, digit1, space0, space1},
   combinator::{eof, rest},
+  multi::separated_list1,
   sequence::{preceded, tuple},
   IResult,
 };
@@ -15,6 +16,8 @@ use crate::error::AppError;
 pub enum UserCommand {
   Msg(String),
   Tx { recipient: String, amount: u64 },
+  Dial(Vec<String>),
+  Peers,
   Unrecognized,
 }
 
@@ -22,7 +25,7 @@ impl FromStr for UserCommand {
   type Err = AppError;
 
   fn from_str(msg: &str) -> Result<Self, Self::Err> {
-    if let Ok((_, cmd)) = alt((message_command, tx_command))(msg) {
+    if let Ok((_, cmd)) = alt((message_command, tx_command, peers_command, dial_command))(msg) {
       Ok(cmd)
     } else {
       Ok(UserCommand::Unrecognized)
@@ -35,6 +38,24 @@ pub fn message_command(input: &str) -> IResult<&str, UserCommand> {
   let mut command = preceded(command, rest);
   let (remainder, message) = command(input)?;
   Ok((remainder, UserCommand::Msg(message.into())))
+}
+
+pub fn peers_command(input: &str) -> IResult<&str, UserCommand> {
+  let mut command = preceded(tag("/peers"), space0);
+  let (remainder, _) = command(input)?;
+  Ok((remainder, UserCommand::Peers))
+}
+
+pub fn dial_command(input: &str) -> IResult<&str, UserCommand> {
+  let command = preceded(tag("/dial"), space1);
+  let non_whitespace = is_not(" \t\r\n");
+  let mut command = preceded(command, separated_list1(space1, non_whitespace));
+  let (remainder, peers) = command(input)?;
+  let peers = peers
+    .iter()
+    .map(|&s| String::from(s))
+    .collect::<Vec<String>>();
+  Ok((remainder, UserCommand::Dial(peers)))
 }
 
 pub fn tx_command(input: &str) -> IResult<&str, UserCommand> {
@@ -90,6 +111,25 @@ mod tests {
     let input = "/tx someaddress123 123.45";
     let msg = input.parse::<UserCommand>()?;
     assert_eq!(msg, UserCommand::Unrecognized);
+    Ok(())
+  }
+
+  #[test]
+  fn user_command_peers_test() -> AppResult<()> {
+    let input = "/peers";
+    let msg = input.parse::<UserCommand>()?;
+    assert_eq!(msg, UserCommand::Peers);
+    Ok(())
+  }
+
+  #[test]
+  fn user_command_dial_test() -> AppResult<()> {
+    let input = "/dial  abc 123 :://";
+    let msg = input.parse::<UserCommand>()?;
+    assert_eq!(
+      msg,
+      UserCommand::Dial(vec!["abc".into(), "123".into(), ":://".into()])
+    );
     Ok(())
   }
 }
