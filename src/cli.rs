@@ -18,4 +18,16 @@ pub struct Cli {
   pub net: String,
   #[structopt(name = "peers", long = "--peers")]
   pub peers: Vec<String>,
+  #[structopt(name = "delay", long = "--delay", default_value = "1")]
+  pub delay: usize,
+}
+
+impl Cli {
+  pub fn delay(&self) -> usize {
+    if self.delay > 10 {
+      10
+    } else {
+      self.delay
+    }
+  }
 }

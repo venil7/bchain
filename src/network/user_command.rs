@@ -18,6 +18,7 @@ pub enum UserCommand {
   Tx { recipient: String, amount: u64 },
   Dial(Vec<String>),
   Peers,
+  Bootstrap,
   Unrecognized,
 }
 
@@ -25,7 +26,14 @@ impl FromStr for UserCommand {
   type Err = AppError;
 
   fn from_str(msg: &str) -> Result<Self, Self::Err> {
-    if let Ok((_, cmd)) = alt((message_command, tx_command, peers_command, dial_command))(msg) {
+    if let Ok((_, cmd)) = alt((
+      message_command,
+      tx_command,
+      peers_command,
+      dial_command,
+      bootstrap_command,
+    ))(msg)
+    {
       Ok(cmd)
     } else {
       Ok(UserCommand::Unrecognized)
@@ -44,6 +52,12 @@ pub fn peers_command(input: &str) -> IResult<&str, UserCommand> {
   let mut command = preceded(tag("/peers"), space0);
   let (remainder, _) = command(input)?;
   Ok((remainder, UserCommand::Peers))
+}
+
+pub fn bootstrap_command(input: &str) -> IResult<&str, UserCommand> {
+  let mut command = preceded(tag("/bootstrap"), space0);
+  let (remainder, _) = command(input)?;
+  Ok((remainder, UserCommand::Bootstrap))
 }
 
 pub fn dial_command(input: &str) -> IResult<&str, UserCommand> {
@@ -119,6 +133,14 @@ mod tests {
     let input = "/peers";
     let msg = input.parse::<UserCommand>()?;
     assert_eq!(msg, UserCommand::Peers);
+    Ok(())
+  }
+
+  #[test]
+  fn user_command_bootstrap_test() -> AppResult<()> {
+    let input = "/bootstrap";
+    let msg = input.parse::<UserCommand>()?;
+    assert_eq!(msg, UserCommand::Bootstrap);
     Ok(())
   }
 

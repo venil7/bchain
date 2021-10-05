@@ -1,3 +1,5 @@
+use async_std::channel::unbounded;
+use async_std::task;
 use bchain::chain::block::Block;
 use bchain::cli::Cli;
 use bchain::db::database::create_db;
@@ -15,16 +17,31 @@ async fn main() -> AppResult<()> {
 
   info!("connected!");
 
-  let latest = db.latest_block()?;
-  if let Some(latest) = latest {
-    info!("latest: {:?}", latest);
-    let block = Block::new_from_previous(&latest);
-    db.commit_block(block)?;
-  } else {
-    warn!("no blocks, adding genesis");
-    let genesis = Block::new();
-    db.commit_block(genesis)?;
-  }
+  let (s, r) = unbounded::<usize>();
+
+  let s = s.clone();
+  let r = r.clone();
+
+  task::spawn(async move {
+    info!("running this in thread");
+    s.send(10).await.unwrap();
+  })
+  .await;
+
+  let r = r.recv().await?;
+
+  info!("--> {}", r);
+
+  // let latest = db.latest_block()?;
+  // if let Some(latest) = latest {
+  //   info!("latest: {:?}", latest);
+  //   let block = Block::new_from_previous(&latest);
+  //   db.commit_block(block)?;
+  // } else {
+  //   warn!("no blocks, adding genesis");
+  //   let genesis = Block::new();
+  //   db.commit_block(genesis)?;
+  // }
 
   Ok(())
 }

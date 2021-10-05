@@ -10,7 +10,8 @@ pub enum Frame {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum BchainRequest {
-  GetBlock(usize),
+  AskLatest(usize),
+  AskBlock(usize),
   SubmitBlock(Block),
   SubmitTx(Tx),
   Msg(String),
@@ -18,9 +19,10 @@ pub enum BchainRequest {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum BchainResponse {
+  Latest(usize),
   Block(Block),
-  BlockAccepted(HashDigest),
-  TxAccepted(HashDigest),
+  AcceptBlock(HashDigest),
+  AcceptTx(HashDigest),
   Error(BchainError),
 }
 

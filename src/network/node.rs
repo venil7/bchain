@@ -1,4 +1,4 @@
-use super::protocol::Frame;
+use super::protocol::{BchainResponse, Frame};
 use crate::{
   chain::wallet::Wallet,
   cli::Cli,
@@ -6,8 +6,7 @@ use crate::{
   network::{protocol::BchainRequest, user_command::UserCommand},
   result::AppResult,
 };
-use async_std::io;
-use async_std::sync::RwLock;
+use async_std::{io, sync::Mutex, task};
 use futures::{prelude::*, select};
 use libp2p::{
   gossipsub::{
@@ -19,7 +18,7 @@ use libp2p::{
   PeerId, Swarm,
 };
 use log::{error, info, warn};
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 async fn create_swarm(
   local_peer_key: &Keypair,
@@ -45,13 +44,12 @@ async fn create_swarm(
 
 pub struct Node {
   cli: Cli,
-  #[allow(dead_code)]
-  db: Db,
-  #[allow(dead_code)]
-  wallet: Wallet,
   topic: Topic,
+  #[allow(dead_code)]
+  db: Arc<Mutex<Db>>,
+  #[allow(dead_code)]
+  wallet: Arc<Mutex<Wallet>>,
   swarm: Swarm<Gossipsub<IdentityTransform, AllowAllSubscriptionFilter>>,
-  num_peers: RwLock<i32>,
 }
 
 impl Node {
@@ -69,30 +67,36 @@ impl Node {
     Ok(Node {
       cli,
       topic,
-      db,
-      wallet,
       swarm,
-      num_peers: RwLock::new(0),
+      db: Arc::new(Mutex::new(db)),
+      wallet: Arc::new(Mutex::new(wallet)),
     })
   }
 
   pub async fn run(&mut self) -> AppResult<()> {
     self.swarm.listen_on(self.cli.listen.parse()?)?;
 
-    let peers = &self.cli.peers.clone()[..];
-    self.dial_peers(&peers);
+    self.dial_peers(&self.cli.peers.clone()).await?;
+
+    let mut bootstrap = {
+      let duration = self.cli.delay;
+      let duration = Duration::from_secs(duration as u64);
+      Box::pin(task::sleep(duration).fuse())
+    };
 
     let mut cmd_lines = io::BufReader::new(io::stdin()).lines();
 
     loop {
       select! {
+        _ = bootstrap => {
+          self.bootstrap().await?;
+        },
         event = self.swarm.next().fuse() => {
           self.handle_swarm_event(event.unwrap()).await?;
         },
         cmd_line = cmd_lines.next().fuse() => {
           if let Some(Ok(ref line)) = cmd_line {
-            let cmd: UserCommand = line.parse()?;
-            self.handle_user_command(&cmd).await?;
+            self.handle_user_command(&line.parse()?).await?;
           }
         },
         complete => break,
@@ -102,32 +106,32 @@ impl Node {
     Ok(())
   }
 
-  fn dial_peers(&mut self, peers: &[String]) {
+  async fn dial_peers(&mut self, peers: &[String]) -> AppResult<()> {
     for peer in peers {
       let to_dial = peer.clone().parse();
       match to_dial {
         Ok(to_dial) => match self.swarm.dial_addr(to_dial) {
-          Ok(_) => info!("Dialed {:?}", peer),
+          Ok(_) => {
+            info!("Dialed {:?}", peer);
+          }
           Err(e) => warn!("Dialing {:?} failed: {:?}", peer, e),
         },
         Err(err) => error!("Failed to parse address to dial: {:?}", err),
       }
     }
+    Ok(())
   }
 
   async fn handle_user_command(&mut self, cmd: &UserCommand) -> AppResult<()> {
     match cmd {
+      UserCommand::Peers => self.display_peers(),
+      UserCommand::Bootstrap => self.bootstrap().await?,
+      UserCommand::Dial(peers) => self.dial_peers(peers).await?,
+      UserCommand::Unrecognized => warn!("Unrecognized user input"),
       UserCommand::Msg(msg) => {
         let msg = Frame::BchainRequest(BchainRequest::Msg(msg.into()));
         self.publish_to_swarm(&msg).await?;
       }
-      UserCommand::Peers => {
-        self.display_peers().await;
-      }
-      UserCommand::Dial(peers) => {
-        self.dial_peers(peers);
-      }
-      UserCommand::Unrecognized => warn!("Unrecognized user input"),
       command => warn!("Currently unsupported: {:?}", command),
     }
     Ok(())
@@ -143,8 +147,6 @@ impl Node {
         self.handle_bchain_event(frame);
       }
       SwarmEvent::NewListenAddr { address, .. } => info!("Listening on {:?}", address),
-      SwarmEvent::ConnectionEstablished { .. } => self.handle_peer(1).await?,
-      SwarmEvent::ConnectionClosed { .. } => self.handle_peer(-1).await?,
       _ => (),
     }
     Ok(())
@@ -152,8 +154,22 @@ impl Node {
 
   fn handle_bchain_event(&mut self, frame: Frame) {
     match frame {
-      Frame::BchainRequest(BchainRequest::Msg(msg)) => info!("{}", msg),
-      _ => info!("unhandled event"),
+      Frame::BchainRequest(request) => self.handle_bchain_request(request),
+      Frame::BchainResponse(response) => self.handle_bchain_response(response),
+      _ => warn!("Unrecognized bchain event"),
+    }
+  }
+
+  fn handle_bchain_request(&mut self, request: BchainRequest) {
+    match request {
+      BchainRequest::Msg(msg) => info!("{}", msg),
+      _ => warn!("Unhandled bchain request"),
+    }
+  }
+
+  fn handle_bchain_response(&mut self, response: BchainResponse) {
+    match response {
+      _ => warn!("Unhandled bchain response"),
     }
   }
 
@@ -170,14 +186,18 @@ impl Node {
     Ok(())
   }
 
-  async fn handle_peer(&mut self, num: i32) -> AppResult<()> {
-    let mut num_peers = self.num_peers.write().await;
-    *num_peers += num;
-    Ok(())
+  fn num_peers(&self) -> usize {
+    self.swarm.network_info().num_peers()
   }
 
-  async fn display_peers(&self) {
-    let num_peers = self.num_peers.read().await;
-    info!("Peers: {}", num_peers);
+  fn display_peers(&self) {
+    info!("Peers: {}", self.num_peers());
+  }
+
+  async fn bootstrap(&mut self) -> AppResult<()> {
+    info!("Bootstrapping..");
+
+    self.display_peers();
+    Ok(())
   }
 }
