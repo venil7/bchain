@@ -9,8 +9,9 @@ hex="0.4"
 sha2 = "0.9"
 anyhow="1.0"
 chrono = "0.4"
-base58 = "0.1"
+base58 = "0.2"
 byteorder="1.4"
+structopt = "0.3"
 serde = {version="1", features=["derive"]}
 pkcs8={version="0.7", features=["alloc", "pem"]}
 

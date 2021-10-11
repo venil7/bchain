@@ -1,12 +1,8 @@
-use super::protocol::{BchainResponse, Frame};
-use crate::{
-  chain::wallet::Wallet,
-  cli::Cli,
-  db::database::{create_db, Db},
-  network::{protocol::BchainRequest, user_command::UserCommand},
-  result::AppResult,
-};
+use crate::protocol::{BchainRequest, BchainResponse, Frame};
+use crate::user_command::UserCommand;
 use async_std::{io, sync::Mutex, task};
+use bchain_db::database::{create_db, Db};
+use bchain_domain::{cli::Cli, error::AppError, result::AppResult, wallet::Wallet};
 use futures::{prelude::*, select};
 use libp2p::{
   gossipsub::{
@@ -28,14 +24,21 @@ async fn create_swarm(
   let transport = libp2p::development_transport(local_peer_key.clone()).await?;
 
   let gossipsub_config = gossipsub::GossipsubConfigBuilder::default()
-    .heartbeat_interval(Duration::from_secs(10)) // This is set to aid debugging by not cluttering the log space
-    .validation_mode(ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message signing)
-    .build()?;
+    .heartbeat_interval(Duration::from_secs(10))
+    .validation_mode(ValidationMode::Strict)
+    .build()
+    .unwrap();
 
-  let mut gossipsub: gossipsub::Gossipsub = gossipsub::Gossipsub::new(
-    MessageAuthenticity::Signed(local_peer_key.clone()),
-    gossipsub_config,
-  )?;
+  let mut gossipsub: gossipsub::Gossipsub = {
+    let gossipsub = gossipsub::Gossipsub::new(
+      MessageAuthenticity::Signed(local_peer_key.clone()),
+      gossipsub_config,
+    );
+    match gossipsub {
+      Err(msg) => Err(AppError::msg(msg)),
+      Ok(res) => Ok(res),
+    }
+  }?;
 
   gossipsub.subscribe(topic).unwrap();
 
@@ -60,7 +63,7 @@ impl Node {
     let mut rsa_pkcs8 = wallet.to_pkcs8_der()?;
     let local_peer_key = identity::Keypair::rsa_from_pkcs8(&mut rsa_pkcs8)?;
 
-    let db = create_db(cli)?;
+    let db = create_db(&cli.database)?;
 
     let swarm = create_swarm(&local_peer_key, &topic).await?;
     let cli = cli.clone();

@@ -1,0 +1,17 @@
+[package]
+name = "bchain-network"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+nom="7"
+log="0.4"
+libp2p="0.39"
+futures = "0.3"
+serde_json = "1.0"
+serde = {version="1", features=["derive"]}
+async-std = {version="1.9.0", features=["attributes"]}
+bchain-domain = { path = "../chain" }
+bchain-db = { path = "../db" }
+
+[dev.dependencies]

@@ -1,3 +1,4 @@
+use bchain_domain::error::AppError;
 use nom::{
   branch::alt,
   bytes::complete::{is_not, tag},
@@ -9,8 +10,6 @@ use nom::{
 };
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-
-use crate::error::AppError;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum UserCommand {
@@ -88,7 +87,7 @@ pub fn tx_command(input: &str) -> IResult<&str, UserCommand> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::result::AppResult;
+  use bchain_domain::result::AppResult;
 
   #[test]
   fn user_command_message_positive_test() -> AppResult<()> {
