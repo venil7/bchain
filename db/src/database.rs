@@ -1,16 +1,14 @@
-use std::convert::TryInto;
-
-use crate::chain::block::Block;
-use crate::chain::hash_digest::Hashable;
-use crate::cli::Cli;
-use crate::db::raw_block::RawBlock;
-use crate::db::schema::blocks;
-use crate::error::AppError;
-use crate::result::AppResult;
+use crate::raw_block::RawBlock;
+use crate::schema::blocks;
+use bchain_domain::block::Block;
+use bchain_domain::error::AppError;
+use bchain_domain::hash_digest::Hashable;
+use bchain_domain::result::AppResult;
 use diesel::prelude::*;
 use diesel::result::Error::NotFound;
 use diesel::SqliteConnection;
 use diesel_migrations::embed_migrations;
+use std::convert::TryInto;
 
 embed_migrations!();
 
@@ -48,7 +46,7 @@ impl Db {
     match query.first::<RawBlock>(&self.connection) {
       Ok(res) => Ok(Some(res.try_into()?)),
       Err(NotFound) => Ok(None),
-      Err(e) => Err(Box::new(AppError::new(&format!("{:?}", e)))),
+      Err(e) => Err(AppError::msg(format!("{:?}", e))),
     }
   }
 
@@ -60,13 +58,13 @@ impl Db {
     match query.first::<RawBlock>(&self.connection) {
       Ok(res) => Ok(Some(res.try_into()?)),
       Err(NotFound) => Ok(None),
-      Err(e) => Err(Box::new(AppError::new(&format!("{:?}", e)))),
+      Err(e) => Err(AppError::msg(format!("{:?}", e))),
     }
   }
 }
 
-pub fn create_db(cli: &Cli) -> AppResult<Db> {
-  let db = Db::new(&cli.database)?;
+pub fn create_db(path: &str) -> AppResult<Db> {
+  let db = Db::new(path)?;
   embedded_migrations::run(db.raw_connection()?)?;
   Ok(db)
 }
