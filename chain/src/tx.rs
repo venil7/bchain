@@ -1,9 +1,8 @@
 use crate::result::AppResult;
-
-use super::hash_digest::{AsBytes, Hashable};
-use super::public_key::PublicKey;
-use super::signature::Signature;
-use super::wallet::Wallet;
+use crate::hash_digest::{AsBytes, Hashable};
+use crate::public_key::PublicKey;
+use crate::signature::Signature;
+use crate::wallet::Wallet;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -59,11 +58,12 @@ impl Hashable for Tx {}
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::{chain::wallet::Wallet, result::AppResult};
+  use crate::{wallet::Wallet, result::AppResult};
+  const RSAKEY_PEM : &str= "../rsakey.pem";
 
   #[async_std::test]
   async fn verify_transaction_serializaton() -> AppResult<()> {
-    let wallet = Wallet::from_file("./rsakey.pem").await?;
+    let wallet = Wallet::from_file(RSAKEY_PEM).await?;
 
     let tx = Tx::new(&wallet, wallet.public_key(), 1234)?;
 
@@ -80,7 +80,7 @@ mod tests {
 
   #[async_std::test]
   async fn verify_legit_tx() -> AppResult<()> {
-    let wallet = Wallet::from_file("./rsakey.pem").await?;
+    let wallet = Wallet::from_file(RSAKEY_PEM).await?;
     let tx = Tx::new(&wallet, wallet.public_key(), 1234)?;
     tx.verify_signature()?;
     Ok(())

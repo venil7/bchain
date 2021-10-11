@@ -1,7 +1,7 @@
-use crate::chain::address::Address;
-use crate::chain::hash_digest::Hashable;
-use crate::chain::public_key::PublicKey;
-use crate::error::AppError;
+use crate::address::Address;
+use crate::hash_digest::Hashable;
+use crate::public_key::PublicKey;
+// use crate::error::AppError;
 use crate::result::AppResult;
 use pkcs8::{FromPrivateKey, PrivateKeyDocument, ToPrivateKey};
 use rsa::{PublicKeyParts, RsaPrivateKey};
@@ -29,7 +29,8 @@ impl Wallet {
     if private_key.validate().is_ok() {
       Ok(Wallet { private_key })
     } else {
-      Err(Box::new(AppError::new("key didnt validate")))
+      Err(anyhow::Error::msg("key didnt validate"))
+      // Err(Box::new(AppError::new("key didnt validate")))
     }
   }
 
@@ -69,24 +70,6 @@ impl Wallet {
     Ok(signature)
   }
 
-  // pub fn new_tx(&self, receiever: &PublicKey, amount: u64) -> AppResult<Tx> {
-  //   let mut tx = Tx {
-  //     sender: self.public_key()?,
-  //     receiver: receiever.clone(),
-  //     amount,
-  //     signature: None,
-  //   };
-  //   tx.signature = Some(self.sign_hashable(&tx)?);
-  //   Ok(tx)
-  // }
-
-  // pub fn verify_tx_signature(&self, tx: &Tx) -> AppResult<()> {
-  //   if let Some(ref signature) = tx.signature {
-  //     tx.sender.verify_signature(&tx.hash().to_vec(), signature)?;
-  //     return Ok(());
-  //   }
-  //   Err("Tx has to be signed".into())
-  // }
 
   pub fn to_pkcs8_der(&self) -> AppResult<Vec<u8>> {
     let der: PrivateKeyDocument = self.private_key.to_pkcs8_der()?;
@@ -97,10 +80,12 @@ impl Wallet {
 #[cfg(test)]
 mod tests {
   use super::*;
+  const RSAKEY_PEM : &str= "../rsakey.pem";
+
 
   #[async_std::test]
   async fn load_wallet_from_pem_test() -> AppResult<()> {
-    let _wallet = Wallet::from_file("./rsakey.pem").await?;
+    let _wallet = Wallet::from_file(RSAKEY_PEM).await?;
     Ok(())
   }
 }
