@@ -1,7 +1,6 @@
 use byteorder::{LittleEndian, WriteBytesExt};
 use core::fmt::Display;
-use serde::Deserialize;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use sha2::Sha256;
 use std::convert::TryFrom;

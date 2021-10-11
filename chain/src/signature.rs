@@ -1,5 +1,5 @@
-use crate::chain::hash_digest::AsBytes;
 use crate::error::AppError;
+use crate::hash_digest::AsBytes;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::ops::Deref;
@@ -43,10 +43,8 @@ impl TryFrom<&[u8]> for Signature {
     if vec.len() == SIGNATURE_LENGTH {
       Ok(Signature(vec.to_vec()))
     } else {
-      Err(AppError::new(&format!(
-        "Signature has to be {} chars long",
-        SIGNATURE_LENGTH
-      )))
+      let message = format!("Signature has to be {} chars long", SIGNATURE_LENGTH);
+      Err(AppError::msg(message))
     }
   }
 }

@@ -1,6 +1,6 @@
-use crate::chain::address::Address;
-use crate::chain::hash_digest::AsBytes;
+use crate::address::Address;
 use crate::error::AppError;
+use crate::hash_digest::AsBytes;
 use crate::result::AppResult;
 use rsa::hash::Hash;
 use rsa::{BigUint, PaddingScheme, PublicKey as _, RsaPublicKey};
@@ -47,10 +47,10 @@ impl PublicKey {
     if bytes.len() >= PUBLIC_KEY_LENGTH {
       Ok(PublicKey(bytes.to_vec()))
     } else {
-      Err(Box::new(AppError::new(&format!(
+      Err(AppError::msg(format!(
         "PublicKey has to be at least {} chars long",
         PUBLIC_KEY_LENGTH
-      ))))
+      )))
     }
   }
 

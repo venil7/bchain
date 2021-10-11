@@ -1,9 +1,3 @@
-[package]
-name = "bchain"
-version = "0.1.0"
-authors = ["darkruby <art@darkruby.co.uk>"]
-edition = "2018"
-
 [[bin]] 
 name = "main"
 path = "src/bin/main.rs"
@@ -12,29 +6,25 @@ path = "src/bin/main.rs"
 name = "diesel"
 path = "src/bin/diesel.rs"
 
-[dependencies]
-nom="7"
-log="0.4"
-bytes="1"
-rsa="0.5"
-hex="0.4"
-rand ="0.8"
-sha2 = "0.9"
-libp2p="0.39"
-dotenv="0.15"
-base58 = "0.1"
-futures = "0.3"
-once_cell = "*"
-byteorder="1.4"
-structopt = "0.3"
-env_logger = "0.9"
-serde_json = "1.0"
-pretty_env_logger = "0.4"
-serde = {version="1", features=["derive"]}
-pkcs8={version="0.7", features=["alloc", "pem"]}
-uuid = { version = "0.8", features = ["serde", "v4"] }
+[package]
+name = "bchain"
+version = "0.1.0"
+authors = ["darkruby <art@darkruby.co.uk>"]
+edition = "2018"
 
+[dependencies]
+log="0.4"
+dotenv="0.15"
+structopt = "0.3"
+pretty_env_logger = "0.4"
 async-std = {version="1.9.0", features=["attributes"]}
-diesel = { version = "1.4.7", features = ["sqlite", "chrono", "numeric"] }
-diesel_migrations = "*"
-chrono = "0.4"
+bchain-db = { path = "db" }
+bchain-domain = { path = "chain" }
+bchain-network = { path = "network" }
+
+[workspace]
+members = [
+	"db",
+	"chain",
+	"network",
+]

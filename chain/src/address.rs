@@ -1,6 +1,6 @@
-use crate::chain::hash_digest::AsBytes;
-use crate::chain::public_key::PublicKey;
 use crate::error::AppError;
+use crate::hash_digest::AsBytes;
+use crate::public_key::PublicKey;
 use base58::FromBase58;
 use base58::ToBase58;
 use serde::{Deserialize, Serialize};
@@ -32,8 +32,9 @@ impl AsBytes for Address {
 impl FromStr for Address {
   type Err = AppError;
   fn from_str(addr: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> {
-    let bytes = addr.from_base58()?;
-    let public_key = PublicKey::try_new(&bytes)?;
-    Ok(Address(public_key))
+    match addr.from_base58() {
+      Ok(bytes) => Ok(Address(PublicKey::try_new(&bytes)?)),
+      _ => Err(AppError::msg("failed to convert from base58")),
+    }
   }
 }

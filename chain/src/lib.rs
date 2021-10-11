@@ -1,7 +1,10 @@
 pub mod address;
 pub mod block;
+pub mod cli;
+pub mod error;
 pub mod hash_digest;
 pub mod public_key;
+pub mod result;
 pub mod signature;
 pub mod tx;
 pub mod wallet;

@@ -1,10 +1,9 @@
 use async_std::channel::unbounded;
 use async_std::task;
-use bchain::chain::block::Block;
-use bchain::cli::Cli;
-use bchain::db::database::create_db;
-use bchain::result::AppResult;
-use log::{info, warn};
+use bchain_db::database::create_db;
+use bchain_domain::cli::Cli;
+use bchain_domain::result::AppResult;
+use log::info;
 use structopt::StructOpt;
 
 #[async_std::main]
@@ -13,7 +12,7 @@ async fn main() -> AppResult<()> {
   pretty_env_logger::init();
 
   let cli = Cli::from_args();
-  let mut db = create_db(&cli)?;
+  let db = create_db(&cli.database)?;
 
   info!("connected!");
 

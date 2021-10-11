@@ -1,4 +1,4 @@
-use crate::chain::{block::Block, hash_digest::HashDigest, tx::Tx};
+use bchain_domain::{block::Block, hash_digest::HashDigest, tx::Tx};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

@@ -1,6 +1,6 @@
-use bchain::cli::Cli;
-use bchain::network::node::Node;
-use bchain::result::AppResult;
+use bchain_domain::cli::Cli;
+use bchain_network::node::Node;
+use bchain_domain::result::AppResult;
 use structopt::StructOpt;
 
 #[async_std::main]
