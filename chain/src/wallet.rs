@@ -1,7 +1,6 @@
 use crate::address::Address;
 use crate::hash_digest::Hashable;
 use crate::public_key::PublicKey;
-// use crate::error::AppError;
 use crate::result::AppResult;
 use pkcs8::{FromPrivateKey, PrivateKeyDocument, ToPrivateKey};
 use rsa::{PublicKeyParts, RsaPrivateKey};
@@ -30,20 +29,8 @@ impl Wallet {
       Ok(Wallet { private_key })
     } else {
       Err(anyhow::Error::msg("key didnt validate"))
-      // Err(Box::new(AppError::new("key didnt validate")))
     }
   }
-
-  // pub fn public_key(&self) -> AppResult<PublicKey> {
-  //   let internal_public_key = self.to_public_key();
-  //   let modulus_bytes = internal_public_key.n().to_bytes_be();
-  //   let exp_bytes = internal_public_key.e().to_bytes_be();
-  //   let mut bytes = vec![];
-  //   bytes.extend_from_slice(&modulus_bytes);
-  //   bytes.extend_from_slice(&exp_bytes);
-  //   let public_key = PublicKey::try_new(&bytes)?;
-  //   Ok(public_key)
-  // }
 
   pub fn public_key(&self) -> PublicKey {
     let internal_public_key = self.to_public_key();
@@ -52,13 +39,9 @@ impl Wallet {
     let mut bytes = vec![];
     bytes.extend_from_slice(&modulus_bytes);
     bytes.extend_from_slice(&exp_bytes);
-    let public_key = PublicKey::try_new(&bytes).expect("failed to get public key");
-    public_key
+    PublicKey::try_new(&bytes).expect("failed to get public key")
   }
 
-  // pub fn public_address(&self) -> AppResult<Address> {
-  //   Ok(self.public_key()?.to_address())
-  // }
   pub fn public_address(&self) -> Address {
     self.public_key().to_address()
   }
@@ -70,7 +53,6 @@ impl Wallet {
     Ok(signature)
   }
 
-
   pub fn to_pkcs8_der(&self) -> AppResult<Vec<u8>> {
     let der: PrivateKeyDocument = self.private_key.to_pkcs8_der()?;
     Ok(der.as_ref().to_vec())
@@ -80,8 +62,7 @@ impl Wallet {
 #[cfg(test)]
 mod tests {
   use super::*;
-  const RSAKEY_PEM : &str= "../rsakey.pem";
-
+  const RSAKEY_PEM: &str = "../rsakey.pem";
 
   #[async_std::test]
   async fn load_wallet_from_pem_test() -> AppResult<()> {

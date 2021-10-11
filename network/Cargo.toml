@@ -13,5 +13,3 @@ serde = {version="1", features=["derive"]}
 async-std = {version="1.9.0", features=["attributes"]}
 bchain-domain = { path = "../chain" }
 bchain-db = { path = "../db" }
-
-[dev.dependencies]

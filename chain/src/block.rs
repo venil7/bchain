@@ -1,12 +1,9 @@
-use crate::hash_digest::HashDigest;
 use crate::hash_digest::AsBytes;
+use crate::hash_digest::HashDigest;
 use crate::hash_digest::Hashable;
 use crate::tx::Tx;
-// use crate::db::raw_block::RawBlock;
-// use crate::error::AppError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-// use std::convert::TryFrom;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Block {
@@ -70,9 +67,9 @@ impl Default for Block {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::{wallet::Wallet, result::AppResult};
+  use crate::{result::AppResult, wallet::Wallet};
 
-  const RSAKEY_PEM : &str= "../rsakey.pem";
+  const RSAKEY_PEM: &str = "../rsakey.pem";
 
   #[async_std::test]
   async fn bloc_equality_test() -> AppResult<()> {
@@ -88,6 +85,4 @@ mod tests {
     assert_eq!(hash1, hash2);
     Ok(())
   }
-
-
 }
