@@ -1,6 +1,6 @@
-use crate::result::AppResult;
 use crate::hash_digest::{AsBytes, Hashable};
 use crate::public_key::PublicKey;
+use crate::result::AppResult;
 use crate::signature::Signature;
 use crate::wallet::Wallet;
 use serde::{Deserialize, Serialize};
@@ -58,8 +58,8 @@ impl Hashable for Tx {}
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::{wallet::Wallet, result::AppResult};
-  const RSAKEY_PEM : &str= "../rsakey.pem";
+  use crate::{result::AppResult, wallet::Wallet};
+  const RSAKEY_PEM: &str = "../rsakey.pem";
 
   #[async_std::test]
   async fn verify_transaction_serializaton() -> AppResult<()> {

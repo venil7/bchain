@@ -40,9 +40,9 @@ impl TryFrom<RawBlock> for Block {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use bchain_domain::{tx::Tx, wallet::Wallet, block::Block, result::AppResult};
+  use bchain_domain::{block::Block, result::AppResult, tx::Tx, wallet::Wallet};
 
-  const RSAKEY_PEM : &str= "../rsakey.pem";
+  const RSAKEY_PEM: &str = "../rsakey.pem";
 
   #[async_std::test]
   async fn to_raw_and_back() -> AppResult<()> {
@@ -56,8 +56,4 @@ mod tests {
     assert_eq!(block, block1);
     Ok(())
   }
-
-
 }
-
-
