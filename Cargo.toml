@@ -27,4 +27,5 @@ members = [
 	"db",
 	"chain",
 	"network",
+	"util",
 ]
