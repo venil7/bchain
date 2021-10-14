@@ -1,10 +1,10 @@
 [[bin]] 
 name = "main"
-path = "src/bin/main.rs"
+path = "src/main.rs"
 
 [[bin]] 
 name = "diesel"
-path = "src/bin/diesel.rs"
+path = "src/diesel.rs"
 
 [package]
 name = "bchain"

@@ -28,3 +28,21 @@ where
     .filter_map(|some: Option<_>| some);
   return ret;
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use anyhow::Result;
+  use async_std::stream;
+
+  #[async_std::test]
+  async fn to_raw_and_back() -> Result<()> {
+    let iterable = vec![1, 1, 2, 3, 1, 2, 2, 3, 3];
+    let stream = stream::from_iter(iterable);
+    let recv1 = group(stream, 3, |item| *item);
+    let res = recv1.collect::<Vec<_>>().await;
+
+    assert_eq!(res, vec![1, 2, 3]);
+    Ok(())
+  }
+}
