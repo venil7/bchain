@@ -1,1 +1,2 @@
-pub mod group_stream;
+pub mod consensus;
+pub mod group;

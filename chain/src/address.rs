@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::hash_digest::AsBytes;
+use crate::hash_digest::{AsBytes, Hashable};
 use crate::public_key::PublicKey;
 use base58::FromBase58;
 use base58::ToBase58;
@@ -28,6 +28,8 @@ impl AsBytes for Address {
     self.0.to_vec()
   }
 }
+
+impl Hashable for Address {}
 
 impl FromStr for Address {
   type Err = AppError;

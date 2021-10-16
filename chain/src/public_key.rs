@@ -1,6 +1,6 @@
 use crate::address::Address;
 use crate::error::AppError;
-use crate::hash_digest::AsBytes;
+use crate::hash_digest::{AsBytes, Hashable};
 use crate::result::AppResult;
 use rsa::hash::Hash;
 use rsa::{BigUint, PaddingScheme, PublicKey as _, RsaPublicKey};
@@ -41,6 +41,8 @@ impl AsBytes for PublicKey {
     self.0.to_vec()
   }
 }
+
+impl Hashable for PublicKey {}
 
 impl PublicKey {
   pub fn try_new(bytes: &[u8]) -> AppResult<Self> {

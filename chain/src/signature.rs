@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::hash_digest::AsBytes;
+use crate::hash_digest::{AsBytes, Hashable};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::ops::Deref;
@@ -35,6 +35,8 @@ impl AsBytes for Signature {
     self.0.to_vec()
   }
 }
+
+impl Hashable for Signature {}
 
 impl TryFrom<&[u8]> for Signature {
   type Error = AppError;

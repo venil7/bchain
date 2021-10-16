@@ -117,8 +117,15 @@ impl AsBytes for String {
   }
 }
 
+impl AsBytes for &str {
+  fn as_bytes(&self) -> std::vec::Vec<u8> {
+    self.to_owned().as_bytes().to_vec()
+  }
+}
+
 impl Hashable for String {}
 impl Hashable for Vec<u8> {}
+impl Hashable for &str {}
 
 #[cfg(test)]
 mod tests {

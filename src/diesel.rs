@@ -12,7 +12,7 @@ async fn main() -> AppResult<()> {
   pretty_env_logger::init();
 
   let cli = Cli::from_args();
-  let db = create_db(&cli.database)?;
+  let _db = create_db(&cli.database)?;
 
   info!("connected!");
 
