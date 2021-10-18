@@ -1,20 +1,25 @@
 use crate::protocol::{BchainRequest, BchainResponse, Frame};
 use crate::user_command::UserCommand;
-use async_std::{io, sync::Mutex, task};
+use async_std::channel::{self, Receiver, Sender};
+use async_std::sync::{Mutex, RwLock};
+use async_std::{io, task};
 use bchain_db::database::{create_db, Db};
+use bchain_domain::block::Block;
 use bchain_domain::{cli::Cli, error::AppError, result::AppResult, wallet::Wallet};
 use futures::{prelude::*, select};
+use libp2p::gossipsub::{
+  self, error::GossipsubHandlerError, subscription_filter::AllowAllSubscriptionFilter, Gossipsub,
+  GossipsubEvent, IdentTopic as Topic, IdentityTransform, MessageAuthenticity, ValidationMode,
+};
 use libp2p::{
-  gossipsub::{
-    self, error::GossipsubHandlerError, subscription_filter::AllowAllSubscriptionFilter, Gossipsub,
-    GossipsubEvent, IdentTopic as Topic, IdentityTransform, MessageAuthenticity, ValidationMode,
-  },
   identity::{self, Keypair},
   swarm::SwarmEvent,
   PeerId, Swarm,
 };
 use log::{error, info, warn};
 use std::{sync::Arc, time::Duration};
+
+type Channel<T> = (Sender<T>, Receiver<T>);
 
 async fn create_swarm(
   local_peer_key: &Keypair,
@@ -51,8 +56,16 @@ pub struct Node {
   #[allow(dead_code)]
   db: Arc<Mutex<Db>>,
   #[allow(dead_code)]
-  wallet: Arc<Mutex<Wallet>>,
+  wallet: Arc<RwLock<Wallet>>,
   swarm: Swarm<Gossipsub<IdentityTransform, AllowAllSubscriptionFilter>>,
+
+  #[allow(dead_code)]
+  network_latest: Channel<usize>,
+  #[allow(dead_code)]
+  network_blocks: Channel<Block>,
+
+  network_responses: Channel<BchainResponse>,
+  network_requests: Channel<BchainRequest>,
 }
 
 impl Node {
@@ -72,7 +85,11 @@ impl Node {
       topic,
       swarm,
       db: Arc::new(Mutex::new(db)),
-      wallet: Arc::new(Mutex::new(wallet)),
+      wallet: Arc::new(RwLock::new(wallet)),
+      network_latest: channel::unbounded(),
+      network_blocks: channel::unbounded(),
+      network_responses: channel::unbounded(),
+      network_requests: channel::unbounded(),
     })
   }
 
@@ -89,13 +106,28 @@ impl Node {
 
     let mut cmd_lines = io::BufReader::new(io::stdin()).lines();
 
+    let (_, mut network_responses) = self.network_responses.clone();
+    let (_, mut network_requests) = self.network_requests.clone();
+
     loop {
       select! {
         _ = bootstrap => {
           self.bootstrap().await?;
         },
+        response = network_responses.next().fuse() => {
+          if let Some(ref response) = response {
+            self.publish_response(response).await?;
+          }
+        },
+        request = network_requests.next().fuse() => {
+          if let Some(ref request) = request {
+            self.publish_request(request).await?;
+          }
+        },
         event = self.swarm.next().fuse() => {
-          self.handle_swarm_event(event.unwrap()).await?;
+          if let Some(ref swarm_event) = event {
+            self.handle_swarm_event(swarm_event).await?;
+          }
         },
         cmd_line = cmd_lines.next().fuse() => {
           if let Some(Ok(ref line)) = cmd_line {
@@ -114,9 +146,7 @@ impl Node {
       let to_dial = peer.clone().parse();
       match to_dial {
         Ok(to_dial) => match self.swarm.dial_addr(to_dial) {
-          Ok(_) => {
-            info!("Dialed {:?}", peer);
-          }
+          Ok(_) => info!("Dialed {:?}", peer),
           Err(e) => warn!("Dialing {:?} failed: {:?}", peer, e),
         },
         Err(err) => error!("Failed to parse address to dial: {:?}", err),
@@ -131,10 +161,7 @@ impl Node {
       UserCommand::Bootstrap => self.bootstrap().await?,
       UserCommand::Dial(peers) => self.dial_peers(peers).await?,
       UserCommand::Unrecognized => warn!("Unrecognized user input"),
-      UserCommand::Msg(msg) => {
-        let msg = Frame::BchainRequest(BchainRequest::Msg(msg.into()));
-        self.publish_to_swarm(&msg).await?;
-      }
+      UserCommand::Msg(msg) => self.publish_user_message(msg),
       command => warn!("Currently unsupported: {:?}", command),
     }
     Ok(())
@@ -142,7 +169,7 @@ impl Node {
 
   async fn handle_swarm_event(
     &mut self,
-    event: SwarmEvent<GossipsubEvent, GossipsubHandlerError>,
+    event: &SwarmEvent<GossipsubEvent, GossipsubHandlerError>,
   ) -> AppResult<()> {
     match event {
       SwarmEvent::Behaviour(GossipsubEvent::Message { message, .. }) => {
@@ -165,6 +192,8 @@ impl Node {
 
   fn handle_bchain_request(&mut self, request: BchainRequest) {
     match request {
+      BchainRequest::AskLatest(_) => self.respond_latest_block_id(),
+      BchainRequest::AskBlock(id) => self.respond_block(id),
       BchainRequest::Msg(msg) => info!("{}", msg),
       _ => warn!("Unhandled bchain request"),
     }
@@ -174,6 +203,20 @@ impl Node {
     match response {
       _ => warn!("Unhandled bchain response"),
     }
+  }
+
+  async fn publish_response(&mut self, res: &BchainResponse) -> AppResult<()> {
+    self
+      .publish_to_swarm(&Frame::BchainResponse(res.clone()))
+      .await?;
+    Ok(())
+  }
+
+  async fn publish_request(&mut self, req: &BchainRequest) -> AppResult<()> {
+    self
+      .publish_to_swarm(&Frame::BchainRequest(req.clone()))
+      .await?;
+    Ok(())
   }
 
   async fn publish_to_swarm(&mut self, frame: &Frame) -> AppResult<()> {
@@ -195,6 +238,41 @@ impl Node {
 
   fn display_peers(&self) {
     info!("Peers: {}", self.num_peers());
+  }
+
+  fn respond_latest_block_id(&mut self) {
+    let db = self.db.clone();
+    let (send_network_response, _) = self.network_responses.clone();
+    task::spawn(async move {
+      if let Ok(Some(block)) = db.lock().await.latest_block() {
+        send_network_response
+          .send(BchainResponse::Latest(block.id))
+          .await?;
+      }
+      AppResult::Ok(())
+    });
+  }
+
+  fn respond_block(&mut self, id: i64) {
+    let db = self.db.clone();
+    let (send_network_response, _) = self.network_responses.clone();
+    task::spawn(async move {
+      if let Ok(Some(block)) = db.lock().await.get_block(id) {
+        send_network_response
+          .send(BchainResponse::Block(block))
+          .await?;
+      }
+      AppResult::Ok(())
+    });
+  }
+
+  fn publish_user_message(&mut self, str: &str) {
+    let (send_network_request, _) = self.network_requests.clone();
+    let str = str.into();
+    task::spawn(async move {
+      send_network_request.send(BchainRequest::Msg(str)).await?;
+      AppResult::Ok(())
+    });
   }
 
   async fn bootstrap(&mut self) -> AppResult<()> {
