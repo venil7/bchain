@@ -3,11 +3,13 @@ use crate::swarm::{create_swarm, BchainSwarm};
 use crate::user_command::UserCommand;
 use async_std::channel::{self, Receiver, Sender};
 use async_std::future::timeout;
+use async_std::prelude::FutureExt;
 use async_std::sync::{Mutex, RwLock};
 use async_std::{io, task};
 use bchain_db::database::{create_db, Db};
 use bchain_domain::block::Block;
 use bchain_domain::hash_digest::Hashable;
+use bchain_domain::tx::Tx;
 use bchain_domain::{cli::Cli, result::AppResult, wallet::Wallet};
 use bchain_util::consensus::peer_majority;
 use bchain_util::group::group;
@@ -18,7 +20,9 @@ use log::{error, info, warn};
 use std::{sync::Arc, time::Duration};
 
 type Channel<T> = (Sender<T>, Receiver<T>);
+type NumPeersConsensus = (usize, usize);
 
+#[allow(dead_code)]
 const TIMEOUT: Duration = Duration::from_secs(10);
 
 pub struct Node {
@@ -28,10 +32,12 @@ pub struct Node {
   wallet: Arc<RwLock<Wallet>>,
   swarm: BchainSwarm,
 
-  #[allow(dead_code)]
   network_latest: Channel<i64>,
-  #[allow(dead_code)]
   network_blocks: Channel<Block>,
+  #[allow(dead_code)]
+  accepted_blocks: Channel<Block>,
+  #[allow(dead_code)]
+  accepted_tx: Channel<Tx>,
 
   network_responses: Channel<BchainResponse>,
   network_requests: Channel<BchainRequest>,
@@ -57,6 +63,8 @@ impl Node {
       wallet: Arc::new(RwLock::new(wallet)),
       network_latest: channel::unbounded(),
       network_blocks: channel::unbounded(),
+      accepted_blocks: channel::unbounded(),
+      accepted_tx: channel::unbounded(),
       network_responses: channel::unbounded(),
       network_requests: channel::unbounded(),
     })
@@ -65,13 +73,13 @@ impl Node {
   pub async fn run(&mut self) -> AppResult<()> {
     self.swarm.listen_on(self.cli.listen.parse()?)?;
 
-    self.dial_peers(&self.cli.peers.clone()).await?;
+    self.dial_peers(self.cli.peers.clone())?;
 
-    let mut bootstrap = {
-      let duration = self.cli.delay;
-      let duration = Duration::from_secs(duration as u64);
-      Box::pin(task::sleep(duration).fuse())
-    };
+    let mut bootstrap = Box::pin(
+      async {}
+        .delay(Duration::from_secs(self.cli.delay as u64))
+        .fuse(),
+    );
 
     let mut cmd_lines = io::BufReader::new(io::stdin()).lines();
 
@@ -80,29 +88,26 @@ impl Node {
 
     loop {
       select! {
-        _ = bootstrap => {
-          self.bootstrap().await?;
-        },
+        _ = bootstrap => self.bootstrap()?,
         response = network_responses.next().fuse() => {
           if let Some(ref response) = response {
-            info!("Received response {:?}", response);
-            self.publish_response(response).await?;
+            self.publish_response(response)?;
           }
         },
         request = network_requests.next().fuse() => {
           if let Some(ref request) = request {
-            info!("Publishing request {:?}", request);
-            self.publish_request(request).await?;
+            self.publish_request(request)?;
           }
         },
         event = self.swarm.next().fuse() => {
           if let Some(ref swarm_event) = event {
-            self.handle_swarm_event(swarm_event).await?;
+            self.handle_swarm_event(swarm_event)?;
           }
         },
         cmd_line = cmd_lines.next().fuse() => {
           if let Some(Ok(ref line)) = cmd_line {
-            self.handle_user_command(&line.parse()?).await?;
+            let command = line.parse()?;
+            self.handle_user_command(&command)?;
           }
         },
         complete => break,
@@ -112,7 +117,7 @@ impl Node {
     Ok(())
   }
 
-  async fn dial_peers(&mut self, peers: &[String]) -> AppResult<()> {
+  fn dial_peers<P: IntoIterator<Item = String>>(&mut self, peers: P) -> AppResult<()> {
     for peer in peers {
       let to_dial = peer.clone().parse();
       match to_dial {
@@ -126,39 +131,34 @@ impl Node {
     Ok(())
   }
 
-  async fn handle_user_command(&mut self, cmd: &UserCommand) -> AppResult<()> {
+  fn handle_user_command(&mut self, cmd: &UserCommand) -> AppResult<()> {
     match cmd {
       UserCommand::Peers => self.display_peers(),
-      UserCommand::Bootstrap => self.bootstrap().await?,
-      UserCommand::Dial(peers) => self.dial_peers(peers).await?,
-      UserCommand::Unrecognized => warn!("Unrecognized user input"),
+      UserCommand::Bootstrap => self.bootstrap()?,
+      UserCommand::Dial(peers) => self.dial_peers(peers.clone())?,
       UserCommand::Msg(msg) => self.publish_user_message(msg),
+      UserCommand::Unrecognized => warn!("Unrecognized user input"),
       command => warn!("Currently unsupported: {:?}", command),
     }
     Ok(())
   }
 
-  async fn handle_swarm_event(
+  fn handle_swarm_event(
     &mut self,
     event: &SwarmEvent<GossipsubEvent, GossipsubHandlerError>,
   ) -> AppResult<()> {
     match event {
       SwarmEvent::Behaviour(GossipsubEvent::Message { message, .. }) => {
-        let frame: Frame = serde_json::from_slice(&message.data)?;
-        self.handle_bchain_event(frame);
+        match serde_json::from_slice(&message.data)? {
+          Frame::BchainRequest(request) => self.handle_bchain_request(request),
+          Frame::BchainResponse(response) => self.handle_bchain_response(response),
+          _ => warn!("Unrecognized bchain event"),
+        }
       }
       SwarmEvent::NewListenAddr { address, .. } => info!("Listening on {:?}", address),
       _ => (),
     }
     Ok(())
-  }
-
-  fn handle_bchain_event(&mut self, frame: Frame) {
-    match frame {
-      Frame::BchainRequest(request) => self.handle_bchain_request(request),
-      Frame::BchainResponse(response) => self.handle_bchain_response(response),
-      _ => warn!("Unrecognized bchain event"),
-    }
   }
 
   fn handle_bchain_request(&mut self, request: BchainRequest) {
@@ -173,25 +173,41 @@ impl Node {
 
   fn handle_bchain_response(&mut self, response: BchainResponse) {
     match response {
-      _ => warn!("Unhandled bchain response"),
+      BchainResponse::Latest(id) => {
+        let (network_latest_sender, _) = self.network_latest.clone();
+        task::spawn(async move {
+          network_latest_sender.send(id).await?;
+          Ok(()) as AppResult<()>
+        });
+      }
+      BchainResponse::Block(block) => {
+        let (network_block_sender, _) = self.network_blocks.clone();
+        task::spawn(async move {
+          network_block_sender.send(block).await?;
+          Ok(()) as AppResult<()>
+        });
+      }
+      BchainResponse::AcceptBlock(block) => {
+        task::spawn(async move { block });
+      }
+      BchainResponse::AcceptTx(block) => {
+        task::spawn(async move { block });
+      }
+      BchainResponse::Error(err) => error!("{:?}", err),
     }
   }
 
-  async fn publish_response(&mut self, res: &BchainResponse) -> AppResult<()> {
-    self
-      .publish_to_swarm(&Frame::BchainResponse(res.clone()))
-      .await?;
+  fn publish_response(&mut self, res: &BchainResponse) -> AppResult<()> {
+    self.publish_to_swarm(&Frame::BchainResponse(res.clone()))?;
     Ok(())
   }
 
-  async fn publish_request(&mut self, req: &BchainRequest) -> AppResult<()> {
-    self
-      .publish_to_swarm(&Frame::BchainRequest(req.clone()))
-      .await?;
+  fn publish_request(&mut self, req: &BchainRequest) -> AppResult<()> {
+    self.publish_to_swarm(&Frame::BchainRequest(req.clone()))?;
     Ok(())
   }
 
-  async fn publish_to_swarm(&mut self, frame: &Frame) -> AppResult<()> {
+  fn publish_to_swarm(&mut self, frame: &Frame) -> AppResult<()> {
     let bytes = serde_json::to_vec(frame)?;
     let publish_result = self
       .swarm
@@ -204,24 +220,13 @@ impl Node {
     Ok(())
   }
 
-  fn num_peers_consensus(&self) -> (usize, usize) {
+  fn num_peers_consensus(&self) -> NumPeersConsensus {
     let num_peers = self.swarm.network_info().num_peers();
     (num_peers, peer_majority(num_peers))
   }
 
   fn display_peers(&self) {
     info!("Peers: {}", self.num_peers_consensus().0);
-  }
-
-  async fn request_latest_block_id(&mut self) -> AppResult<Option<i64>> {
-    let (_, majority) = self.num_peers_consensus();
-    info!("Consensus {}", majority);
-    let (send_network_request, _) = self.network_requests.clone();
-    send_network_request.send(BchainRequest::AskLatest).await?;
-    let (_, recv_network_latest) = self.network_latest.clone();
-    let mut network_latest_block_stream = group(recv_network_latest, majority, |&i| i);
-    let network_latest_block_id = timeout(TIMEOUT, network_latest_block_stream.next());
-    Ok(network_latest_block_id.await?)
   }
 
   fn respond_latest_block_id(&mut self) {
@@ -261,32 +266,64 @@ impl Node {
     });
   }
 
-  async fn bootstrap(&mut self) -> AppResult<()> {
-    let (num_peers, _) = self.num_peers_consensus();
-    info!("Bootstrapping network {}", self.cli.net);
-    info!("Peers {}", num_peers);
-    if self.cli.init {
-      return self.bootstrap_init().await;
-    }
-    if num_peers < 1 {
-      warn!("Not enough peers to bootstrap");
-      return Ok(());
-    }
-    if let Some(id) = self.request_latest_block_id().await? {
-      info!("latest id from network {}", id)
-    }
-    Ok(())
-  }
+  fn bootstrap(&mut self) -> AppResult<()> {
+    let (num_peers, consensus) = self.num_peers_consensus();
+    let cli = self.cli.clone();
 
-  async fn bootstrap_init(&mut self) -> AppResult<()> {
-    let genesis = {
-      let wallet = self.wallet.read().await;
-      let tx = wallet.new_tx(wallet.public_key(), 1000)?;
-      Block::new(Some([tx]))
-    };
-    let mut db = self.db.lock().await;
-    db.commit_as_genesis(&genesis)?;
-    info!("Writing genesis block {}", genesis.hash_digest());
+    let wallet = self.wallet.clone();
+    let db = self.db.clone();
+
+    let (network_requests, _) = self.network_requests.clone();
+    let (_, network_latest) = self.network_latest.clone();
+
+    task::spawn(async move {
+      info!("Bootstrapping network {}", cli.net);
+      info!("Peers {}", num_peers);
+
+      if cli.init {
+        bootstrap_init(wallet, db).await?;
+        return Ok(());
+      }
+
+      if num_peers < 1 {
+        warn!("Not enough peers to bootstrap");
+        return Ok(());
+      }
+
+      let npc = (num_peers, consensus);
+      if let Some(id) = request_latest_block_id(&npc, network_requests, network_latest).await? {
+        info!("latest id from network {}", id)
+      }
+
+      Ok(()) as AppResult<()>
+    });
+
     Ok(())
   }
+}
+
+async fn bootstrap_init(wallet: Arc<RwLock<Wallet>>, db: Arc<Mutex<Db>>) -> AppResult<()> {
+  let genesis = {
+    let wallet = wallet.read().await;
+    let tx = wallet.new_tx(wallet.public_key(), 1000)?;
+    Block::new(Some([tx]))
+  };
+  let mut db = db.lock().await;
+  db.commit_as_genesis(&genesis)?;
+  info!("Writing genesis block {}", genesis.hash_digest());
+  Ok(())
+}
+
+#[allow(dead_code)]
+async fn request_latest_block_id(
+  npc: &NumPeersConsensus,
+  network_requests: Sender<BchainRequest>,
+  network_latest: Receiver<i64>,
+) -> AppResult<Option<i64>> {
+  let (_, majority) = npc;
+  // info!("Consensus {}", majority);
+  network_requests.send(BchainRequest::AskLatest).await?;
+  let mut network_latest_block_stream = group(network_latest, *majority, |&i| i);
+  let network_latest_block_id = timeout(TIMEOUT, network_latest_block_stream.next());
+  Ok(network_latest_block_id.await?)
 }

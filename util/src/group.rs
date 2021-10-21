@@ -15,16 +15,15 @@ where
       HashMap::default() as HashMap<K, usize>,
       move |state, item| {
         let idx = get_index(&item);
-        if let Some(&count) = state.get(&idx) {
-          if count >= group_num - 1 {
-            state.remove(&idx);
-            Some(Some(item))
-          } else {
-            state.insert(idx, count + 1);
-            Some(None)
-          }
+        let val = match state.get(&idx) {
+          Some(v) => v + 1,
+          None => 1,
+        };
+        if val >= group_num {
+          state.remove(&idx);
+          Some(Some(item))
         } else {
-          state.insert(idx, 1);
+          state.insert(idx, val);
           Some(None)
         }
       },
@@ -47,6 +46,28 @@ mod tests {
     let res = recv1.collect::<Vec<_>>().await;
 
     assert_eq!(res, vec![1, 2, 3]);
+    Ok(())
+  }
+
+  #[async_std::test]
+  async fn group_test_2() -> Result<()> {
+    let iterable = vec![1, 2, 3];
+    let stream = stream::from_iter(iterable);
+    let recv1 = group(stream, 1, |&item| item);
+    let res = recv1.collect::<Vec<_>>().await;
+
+    assert_eq!(res, vec![1, 2, 3]);
+    Ok(())
+  }
+
+  #[async_std::test]
+  async fn group_test_3() -> Result<()> {
+    let iterable = vec![1];
+    let stream = stream::from_iter(iterable);
+    let recv1 = group(stream, 1, |&item| item);
+    let res = recv1.collect::<Vec<_>>().await;
+
+    assert_eq!(res, vec![1]);
     Ok(())
   }
 }
