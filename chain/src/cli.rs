@@ -12,7 +12,7 @@ pub struct Cli {
   pub listen: String,
   #[structopt(name = "wallet", long = "--wallet", default_value = DEFAULT_WALLET)]
   pub wallet: String,
-  #[structopt(name = "database", long = "--database", default_value = DEFAULT_DATABASE)]
+  #[structopt(name = "database", long = "--db", default_value = DEFAULT_DATABASE)]
   pub database: String,
   #[structopt(name = "net", long = "--net", default_value = DEFAULT_NET)]
   pub net: String,
@@ -20,6 +20,8 @@ pub struct Cli {
   pub peers: Vec<String>,
   #[structopt(name = "delay", long = "--delay", default_value = "1")]
   pub delay: usize,
+  #[structopt(name = "init", long = "--init")]
+  pub init: bool,
 }
 
 impl Cli {

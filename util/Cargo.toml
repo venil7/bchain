@@ -6,6 +6,7 @@ edition = "2018"
 [dependencies]
 async-std = {version="1", features=["attributes", "unstable"]}
 bchain-domain = { path = "../chain" }
+num="0.4"
 
 [dev-dependencies]
 anyhow="1.0"

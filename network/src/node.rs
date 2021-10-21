@@ -1,66 +1,35 @@
 use crate::protocol::{BchainRequest, BchainResponse, Frame};
+use crate::swarm::{create_swarm, BchainSwarm};
 use crate::user_command::UserCommand;
 use async_std::channel::{self, Receiver, Sender};
+use async_std::future::timeout;
 use async_std::sync::{Mutex, RwLock};
 use async_std::{io, task};
 use bchain_db::database::{create_db, Db};
 use bchain_domain::block::Block;
-use bchain_domain::{cli::Cli, error::AppError, result::AppResult, wallet::Wallet};
+use bchain_domain::hash_digest::Hashable;
+use bchain_domain::{cli::Cli, result::AppResult, wallet::Wallet};
+use bchain_util::consensus::peer_majority;
+use bchain_util::group::group;
 use futures::{prelude::*, select};
-use libp2p::gossipsub::{
-  self, error::GossipsubHandlerError, subscription_filter::AllowAllSubscriptionFilter, Gossipsub,
-  GossipsubEvent, IdentTopic as Topic, IdentityTransform, MessageAuthenticity, ValidationMode,
-};
-use libp2p::{
-  identity::{self, Keypair},
-  swarm::SwarmEvent,
-  PeerId, Swarm,
-};
+use libp2p::gossipsub::{error::GossipsubHandlerError, GossipsubEvent, IdentTopic as Topic};
+use libp2p::{identity, swarm::SwarmEvent};
 use log::{error, info, warn};
 use std::{sync::Arc, time::Duration};
 
 type Channel<T> = (Sender<T>, Receiver<T>);
 
-async fn create_swarm(
-  local_peer_key: &Keypair,
-  topic: &Topic,
-) -> AppResult<Swarm<Gossipsub<IdentityTransform, AllowAllSubscriptionFilter>>> {
-  let local_peer_id = PeerId::from(local_peer_key.public());
-  let transport = libp2p::development_transport(local_peer_key.clone()).await?;
-
-  let gossipsub_config = gossipsub::GossipsubConfigBuilder::default()
-    .heartbeat_interval(Duration::from_secs(10))
-    .validation_mode(ValidationMode::Strict)
-    .build()
-    .unwrap();
-
-  let mut gossipsub: gossipsub::Gossipsub = {
-    let gossipsub = gossipsub::Gossipsub::new(
-      MessageAuthenticity::Signed(local_peer_key.clone()),
-      gossipsub_config,
-    );
-    match gossipsub {
-      Err(msg) => Err(AppError::msg(msg)),
-      Ok(res) => Ok(res),
-    }
-  }?;
-
-  gossipsub.subscribe(topic).unwrap();
-
-  Ok(libp2p::Swarm::new(transport, gossipsub, local_peer_id))
-}
+const TIMEOUT: Duration = Duration::from_secs(10);
 
 pub struct Node {
   cli: Cli,
   topic: Topic,
-  #[allow(dead_code)]
   db: Arc<Mutex<Db>>,
-  #[allow(dead_code)]
   wallet: Arc<RwLock<Wallet>>,
-  swarm: Swarm<Gossipsub<IdentityTransform, AllowAllSubscriptionFilter>>,
+  swarm: BchainSwarm,
 
   #[allow(dead_code)]
-  network_latest: Channel<usize>,
+  network_latest: Channel<i64>,
   #[allow(dead_code)]
   network_blocks: Channel<Block>,
 
@@ -116,11 +85,13 @@ impl Node {
         },
         response = network_responses.next().fuse() => {
           if let Some(ref response) = response {
+            info!("Received response {:?}", response);
             self.publish_response(response).await?;
           }
         },
         request = network_requests.next().fuse() => {
           if let Some(ref request) = request {
+            info!("Publishing request {:?}", request);
             self.publish_request(request).await?;
           }
         },
@@ -191,8 +162,9 @@ impl Node {
   }
 
   fn handle_bchain_request(&mut self, request: BchainRequest) {
+    info!("bchain request {:?}", request);
     match request {
-      BchainRequest::AskLatest(_) => self.respond_latest_block_id(),
+      BchainRequest::AskLatest => self.respond_latest_block_id(),
       BchainRequest::AskBlock(id) => self.respond_block(id),
       BchainRequest::Msg(msg) => info!("{}", msg),
       _ => warn!("Unhandled bchain request"),
@@ -232,19 +204,33 @@ impl Node {
     Ok(())
   }
 
-  fn num_peers(&self) -> usize {
-    self.swarm.network_info().num_peers()
+  fn num_peers_consensus(&self) -> (usize, usize) {
+    let num_peers = self.swarm.network_info().num_peers();
+    (num_peers, peer_majority(num_peers))
   }
 
   fn display_peers(&self) {
-    info!("Peers: {}", self.num_peers());
+    info!("Peers: {}", self.num_peers_consensus().0);
+  }
+
+  async fn request_latest_block_id(&mut self) -> AppResult<Option<i64>> {
+    let (_, majority) = self.num_peers_consensus();
+    info!("Consensus {}", majority);
+    let (send_network_request, _) = self.network_requests.clone();
+    send_network_request.send(BchainRequest::AskLatest).await?;
+    let (_, recv_network_latest) = self.network_latest.clone();
+    let mut network_latest_block_stream = group(recv_network_latest, majority, |&i| i);
+    let network_latest_block_id = timeout(TIMEOUT, network_latest_block_stream.next());
+    Ok(network_latest_block_id.await?)
   }
 
   fn respond_latest_block_id(&mut self) {
     let db = self.db.clone();
     let (send_network_response, _) = self.network_responses.clone();
+    info!("respond_latest_block_id");
     task::spawn(async move {
       if let Ok(Some(block)) = db.lock().await.latest_block() {
+        info!("responding with latest block id {}", block.id);
         send_network_response
           .send(BchainResponse::Latest(block.id))
           .await?;
@@ -276,9 +262,31 @@ impl Node {
   }
 
   async fn bootstrap(&mut self) -> AppResult<()> {
-    info!("Bootstrapping..");
+    let (num_peers, _) = self.num_peers_consensus();
+    info!("Bootstrapping network {}", self.cli.net);
+    info!("Peers {}", num_peers);
+    if self.cli.init {
+      return self.bootstrap_init().await;
+    }
+    if num_peers < 1 {
+      warn!("Not enough peers to bootstrap");
+      return Ok(());
+    }
+    if let Some(id) = self.request_latest_block_id().await? {
+      info!("latest id from network {}", id)
+    }
+    Ok(())
+  }
 
-    self.display_peers();
+  async fn bootstrap_init(&mut self) -> AppResult<()> {
+    let genesis = {
+      let wallet = self.wallet.read().await;
+      let tx = wallet.new_tx(wallet.public_key(), 1000)?;
+      Block::new(Some([tx]))
+    };
+    let mut db = self.db.lock().await;
+    db.commit_as_genesis(&genesis)?;
+    info!("Writing genesis block {}", genesis.hash_digest());
     Ok(())
   }
 }

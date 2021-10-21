@@ -6,6 +6,7 @@ use pkcs8::{FromPrivateKey, PrivateKeyDocument, ToPrivateKey};
 use rsa::{PublicKeyParts, RsaPrivateKey};
 use std::convert::TryFrom;
 use std::ops::Deref;
+use crate::tx::Tx;
 
 use super::public_key::PADDING;
 use super::signature::Signature;
@@ -30,6 +31,10 @@ impl Wallet {
     } else {
       Err(anyhow::Error::msg("key didnt validate"))
     }
+  }
+
+  pub fn new_tx(&self, receiver: PublicKey, amount: u64) -> AppResult<Tx> {
+    Tx::new(self, receiver, amount)
   }
 
   pub fn public_key(&self) -> PublicKey {

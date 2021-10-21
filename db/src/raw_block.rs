@@ -12,11 +12,11 @@ pub struct RawBlock {
   pub created: NaiveDateTime,
 }
 
-impl TryFrom<Block> for RawBlock {
+impl TryFrom<&Block> for RawBlock {
   type Error = AppError;
 
-  fn try_from(block: Block) -> Result<Self, Self::Error> {
-    let str_json = serde_json::to_string(&block)?;
+  fn try_from(block: &Block) -> Result<Self, Self::Error> {
+    let str_json = serde_json::to_string(block)?;
     let raw_block = RawBlock {
       id: block.id as i32,
       block: str_json.as_bytes().to_vec(),
@@ -47,11 +47,11 @@ mod tests {
   #[async_std::test]
   async fn to_raw_and_back() -> AppResult<()> {
     let wallet = Wallet::from_file(RSAKEY_PEM).await?;
-    let genesis = Block::new();
-    let mut block = Block::new_from_previous(&genesis);
+    let genesis = Block::default();
+    let mut block = Block::from_previous(&genesis);
     let tx = Tx::new(&wallet, wallet.public_key(), 1234)?;
     block.add(&tx);
-    let raw = RawBlock::try_from(block.clone())?;
+    let raw = RawBlock::try_from(&block)?;
     let block1 = Block::try_from(raw)?;
     assert_eq!(block, block1);
     Ok(())

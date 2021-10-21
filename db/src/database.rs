@@ -26,7 +26,7 @@ impl Db {
     Ok(Db { connection })
   }
 
-  pub fn commit_block(&mut self, block: Block) -> AppResult<()> {
+  pub fn commit_block(&mut self, block: &Block) -> AppResult<()> {
     if let Some(latest) = self.latest_block()? {
       assert_eq!(latest.id + 1, block.id);
       assert_eq!(Some(latest.hash_digest()), block.parent_hash);
@@ -35,6 +35,12 @@ impl Db {
     let query = diesel::insert_into(blocks::table).values(raw_block);
     query.execute(&self.connection)?;
     Ok(())
+  }
+
+  pub fn commit_as_genesis(&mut self, block: &Block) -> AppResult<()> {
+    let query = diesel::delete(blocks::table);
+    query.execute(&self.connection)?;
+    self.commit_block(block)
   }
 
   pub fn latest_block(&mut self) -> AppResult<Option<Block>> {

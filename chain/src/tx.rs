@@ -22,6 +22,7 @@ impl Tx {
     transaction_body.extend_from_slice(&receiver.as_bytes());
     transaction_body
   }
+  
   pub fn new(wallet: &Wallet, receiver: PublicKey, amount: u64) -> AppResult<Tx> {
     let sender = wallet.public_key();
     let transaction_body = Tx::transaction_body(amount, &sender, &receiver);

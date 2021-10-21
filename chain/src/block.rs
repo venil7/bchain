@@ -32,17 +32,26 @@ impl AsBytes for Block {
 impl Hashable for Block {}
 
 impl Block {
-  pub fn new() -> Block {
-    Block {
+  pub fn new<TXs>(txs: Option<TXs>) -> Block
+  where
+    TXs: IntoIterator<Item = Tx>,
+  {
+    let mut block = Block {
       id: 0,
       timestamp: chrono::Utc::now().timestamp(),
       txs: Default::default(),
       parent_hash: None,
       nonce: vec![],
+    };
+    if let Some(txs) = txs {
+      for tx in txs {
+        block.add(&tx);
+      }
     }
+    block
   }
 
-  pub fn new_from_previous(previous_block: &Block) -> Block {
+  pub fn from_previous(previous_block: &Block) -> Block {
     Block {
       id: previous_block.id + 1,
       timestamp: chrono::Utc::now().timestamp(),
@@ -50,6 +59,10 @@ impl Block {
       parent_hash: Some(previous_block.hash_digest()),
       nonce: vec![],
     }
+  }
+
+  pub fn new_next(&self) -> Self {
+    Self::from_previous(self)
   }
 
   pub fn add(&mut self, tx: &Tx) {
@@ -60,7 +73,7 @@ impl Block {
 
 impl Default for Block {
   fn default() -> Self {
-    Self::new()
+    Self::new::<Vec<Tx>>(None)
   }
 }
 
@@ -74,8 +87,8 @@ mod tests {
   #[async_std::test]
   async fn bloc_equality_test() -> AppResult<()> {
     let wallet = Wallet::from_file(RSAKEY_PEM).await?;
-    let genesis = Block::new();
-    let mut block = Block::new_from_previous(&genesis);
+    let genesis = Block::default();
+    let mut block = Block::from_previous(&genesis);
     let tx = Tx::new(&wallet, wallet.public_key(), 1234)?;
     block.add(&tx);
     let hash1 = block.hash_digest();
