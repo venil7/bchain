@@ -77,6 +77,12 @@ impl Default for Block {
   }
 }
 
+impl PartialOrd for Block {
+  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    (self.id, self.timestamp).partial_cmp(&(other.id, other.timestamp))
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;

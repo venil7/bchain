@@ -8,6 +8,7 @@ use diesel::prelude::*;
 use diesel::result::Error::NotFound;
 use diesel::SqliteConnection;
 use diesel_migrations::embed_migrations;
+use log::info;
 use std::convert::TryInto;
 
 embed_migrations!();
@@ -34,6 +35,7 @@ impl Db {
     let raw_block: RawBlock = block.try_into()?;
     let query = diesel::insert_into(blocks::table).values(raw_block);
     query.execute(&self.connection)?;
+    info!("Commited block #{} {}", block.id, block.hash_digest());
     Ok(())
   }
 
@@ -41,6 +43,10 @@ impl Db {
     let query = diesel::delete(blocks::table);
     query.execute(&self.connection)?;
     self.commit_block(block)
+  }
+
+  pub fn latest_block_id(&mut self) -> AppResult<Option<i64>> {
+    Ok(self.latest_block()?.map(|block| block.id))
   }
 
   pub fn latest_block(&mut self) -> AppResult<Option<Block>> {
@@ -71,6 +77,7 @@ impl Db {
 
 pub fn create_db(path: &str) -> AppResult<Db> {
   let db = Db::new(path)?;
+  info!("Creating new chain DB");
   embedded_migrations::run(db.raw_connection()?)?;
   Ok(db)
 }
