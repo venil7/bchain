@@ -9,6 +9,7 @@ use diesel::result::Error::NotFound;
 use diesel::SqliteConnection;
 use diesel_migrations::embed_migrations;
 use log::info;
+use std::cmp::max;
 use std::convert::TryInto;
 
 embed_migrations!();
@@ -60,6 +61,23 @@ impl Db {
       Err(NotFound) => Ok(None),
       Err(e) => Err(AppError::msg(format!("{:?}", e))),
     }
+  }
+
+  pub fn recent_blocks(&mut self, num_blocks: i64) -> AppResult<Vec<Block>> {
+    let mut blocks = vec![];
+    let latest = self.latest_block()?;
+    if let Some(block) = latest {
+      let latest_id = block.id;
+      blocks.push(block);
+      if latest_id > 0 {
+        let rest = ((max(0, latest_id - num_blocks))..latest_id).rev();
+        for id in rest {
+          blocks.push(self.get_block(id)?.unwrap());
+        }
+      }
+    }
+
+    Ok(blocks)
   }
 
   pub fn get_block(&mut self, id: i64) -> AppResult<Option<Block>> {

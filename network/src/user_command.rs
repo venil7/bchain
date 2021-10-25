@@ -15,6 +15,7 @@ use std::str::FromStr;
 pub enum UserCommand {
   Msg(String),
   Tx { recipient: String, amount: u64 },
+  Blocks,
   Dial(Vec<String>),
   Peers,
   Bootstrap,
@@ -31,6 +32,7 @@ impl FromStr for UserCommand {
       peers_command,
       dial_command,
       bootstrap_command,
+      blocks_command,
     ))(msg)
     {
       Ok(cmd)
@@ -82,6 +84,12 @@ pub fn tx_command(input: &str) -> IResult<&str, UserCommand> {
       amount: amount.parse().expect("failed to parse amount"),
     },
   ))
+}
+
+pub fn blocks_command(input: &str) -> IResult<&str, UserCommand> {
+  let mut command = preceded(tag("/blocks"), space0);
+  let (remainder, _) = command(input)?;
+  Ok((remainder, UserCommand::Blocks))
 }
 
 #[cfg(test)]

@@ -10,6 +10,7 @@ use async_std::sync::{Mutex, RwLock};
 use async_std::{io, task};
 use bchain_db::database::{create_db, Db};
 use bchain_domain::block::Block;
+use bchain_domain::hash_digest::Hashable;
 use bchain_domain::tx::Tx;
 use bchain_domain::{cli::Cli, result::AppResult, wallet::Wallet};
 use bchain_util::group::peer_majority;
@@ -133,6 +134,7 @@ impl Node {
   fn handle_user_command(&mut self, cmd: &UserCommand) -> AppResult<()> {
     match cmd {
       UserCommand::Peers => self.display_peers(),
+      &UserCommand::Blocks => self.display_blocks(),
       UserCommand::Bootstrap => self.bootstrap()?,
       UserCommand::Dial(peers) => self.dial_peers(peers.clone())?,
       UserCommand::Msg(msg) => self.publish_user_message(msg),
@@ -227,6 +229,17 @@ impl Node {
 
   fn display_peers(&self) {
     info!("Peers: {}", self.num_peers_consensus().0);
+  }
+
+  fn display_blocks(&self) {
+    let db = self.db.clone();
+    task::spawn(async move {
+      let recent = db.lock().await.recent_blocks(10)?;
+      for b in recent {
+        info!("Block #{} {}", b.id, b.hash_digest());
+      }
+      Ok(()) as AppResult<()>
+    });
   }
 
   fn respond_latest_block_id(&mut self) {
