@@ -4,6 +4,7 @@ use crate::hash_digest::Hashable;
 use crate::tx::Tx;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::Display;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Block {
@@ -80,6 +81,12 @@ impl Default for Block {
 impl PartialOrd for Block {
   fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
     (self.id, self.timestamp).partial_cmp(&(other.id, other.timestamp))
+  }
+}
+
+impl Display for Block {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "Block #{} hash: {}", self.id, self.hash_digest())
   }
 }
 

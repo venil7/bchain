@@ -19,7 +19,7 @@ pub enum BchainRequest {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum BchainResponse {
-  Latest(i64),
+  Latest(Block),
   Block(Block),
   AcceptBlock(HashDigest),
   AcceptTx(HashDigest),

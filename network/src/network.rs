@@ -6,7 +6,7 @@ use bchain_db::database::Db;
 use bchain_domain::block::Block;
 use bchain_domain::hash_digest::Hashable;
 use bchain_domain::{result::AppResult, wallet::Wallet};
-use bchain_util::group::{group_by, group_default};
+use bchain_util::group::group_default;
 use futures::prelude::*;
 use log::info;
 use std::{sync::Arc, time::Duration};
@@ -30,15 +30,15 @@ pub(crate) async fn bootstrap_init(
   Ok(())
 }
 
-pub(crate) async fn request_latest_block_id(
+pub(crate) async fn request_latest_block(
   (_, majority): &NumPeersConsensus,
   network_requests: Sender<BchainRequest>,
-  network_latest: Receiver<i64>,
-) -> AppResult<Option<i64>> {
+  network_latest: Receiver<Block>,
+) -> AppResult<Option<Block>> {
   network_requests.send(BchainRequest::AskLatest).await?;
-  let mut network_latest_block_stream = group_by(network_latest, *majority, |&i| i);
-  let network_latest_block_id = timeout(TIMEOUT, network_latest_block_stream.next());
-  Ok(network_latest_block_id.await?)
+  let mut network_latest_block_stream = group_default(network_latest, *majority);
+  let network_latest_block = timeout(TIMEOUT, network_latest_block_stream.next());
+  Ok(network_latest_block.await?)
 }
 
 pub(crate) async fn request_specific_block(

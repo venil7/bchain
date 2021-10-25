@@ -1,5 +1,5 @@
 use crate::network::{
-  bootstrap_init, request_latest_block_id, request_specific_block, NumPeersConsensus,
+  bootstrap_init, request_latest_block, request_specific_block, NumPeersConsensus,
 };
 use crate::protocol::{BchainRequest, BchainResponse, Frame};
 use crate::swarm::{create_swarm, BchainSwarm};
@@ -10,14 +10,13 @@ use async_std::sync::{Mutex, RwLock};
 use async_std::{io, task};
 use bchain_db::database::{create_db, Db};
 use bchain_domain::block::Block;
-use bchain_domain::hash_digest::Hashable;
 use bchain_domain::tx::Tx;
 use bchain_domain::{cli::Cli, result::AppResult, wallet::Wallet};
 use bchain_util::group::peer_majority;
 use futures::{prelude::*, select};
 use libp2p::gossipsub::{error::GossipsubHandlerError, GossipsubEvent, IdentTopic as Topic};
 use libp2p::{identity, swarm::SwarmEvent};
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use std::{sync::Arc, time::Duration};
 
 type Channel<T> = (Sender<T>, Receiver<T>);
@@ -31,7 +30,7 @@ pub struct Node {
   #[allow(dead_code)]
   bootstrapped: Arc<RwLock<bool>>,
 
-  network_latest: Channel<i64>,
+  network_latest: Channel<Block>,
   network_blocks: Channel<Block>,
   #[allow(dead_code)]
   accepted_blocks: Channel<Block>,
@@ -165,7 +164,7 @@ impl Node {
   fn handle_bchain_request(&mut self, request: BchainRequest) {
     info!("Network request: {:?}", request);
     match request {
-      BchainRequest::AskLatest => self.respond_latest_block_id(),
+      BchainRequest::AskLatest => self.respond_latest_block(),
       BchainRequest::AskBlock(id) => self.respond_block(id),
       BchainRequest::Msg(msg) => info!("{}", msg),
       _ => warn!("Unhandled bchain request"),
@@ -173,12 +172,12 @@ impl Node {
   }
 
   fn handle_bchain_response(&mut self, response: BchainResponse) {
-    info!("Network response: {:?}", response);
+    debug!("Network response: {:?}", response);
     match response {
-      BchainResponse::Latest(id) => {
+      BchainResponse::Latest(block) => {
         let (network_latest_sender, _) = self.network_latest.clone();
         task::spawn(async move {
-          network_latest_sender.send(id).await?;
+          network_latest_sender.send(block).await?;
           Ok(()) as AppResult<()>
         });
       }
@@ -235,20 +234,20 @@ impl Node {
     let db = self.db.clone();
     task::spawn(async move {
       let recent = db.lock().await.recent_blocks(10)?;
-      for b in recent {
-        info!("Block #{} {}", b.id, b.hash_digest());
+      for block in recent {
+        info!("{}", block);
       }
       Ok(()) as AppResult<()>
     });
   }
 
-  fn respond_latest_block_id(&mut self) {
+  fn respond_latest_block(&mut self) {
     let db = self.db.clone();
     let (send_network_response, _) = self.network_responses.clone();
     task::spawn(async move {
       if let Ok(Some(block)) = db.lock().await.latest_block() {
         send_network_response
-          .send(BchainResponse::Latest(block.id))
+          .send(BchainResponse::Latest(block))
           .await?;
       }
       AppResult::Ok(())
@@ -304,20 +303,20 @@ impl Node {
       let npc = (num_peers, consensus);
 
       loop {
-        let network_latest_id =
-          request_latest_block_id(&npc, network_requests.clone(), network_latest.clone()).await?;
-        let local_latest_id = db.lock().await.latest_block_id()?;
+        let network_latest_block =
+          request_latest_block(&npc, network_requests.clone(), network_latest.clone()).await?;
+        let local_latest_block = db.lock().await.latest_block()?;
 
-        if network_latest_id == local_latest_id {
+        if network_latest_block == local_latest_block {
           info!("Local and remote blocks syncronized");
           break;
         }
 
-        if local_latest_id < network_latest_id {
-          info!("Local id {:?}", local_latest_id);
-          info!("Network id {:?}", network_latest_id);
+        if local_latest_block < network_latest_block {
+          info!("Local id {:?}", local_latest_block);
+          info!("Network id {:?}", network_latest_block);
           let block = request_specific_block(
-            network_latest_id.unwrap(),
+            network_latest_block.unwrap().id,
             &npc,
             network_requests.clone(),
             network_blocks.clone(),
