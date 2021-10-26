@@ -30,6 +30,12 @@ impl DerefMut for PublicKey {
   }
 }
 
+impl AsRef<[u8]> for PublicKey {
+  fn as_ref(&self) -> &[u8] {
+    &self.0[..]
+  }
+}
+
 impl Default for PublicKey {
   fn default() -> Self {
     PublicKey(vec![0u8; PUBLIC_KEY_LENGTH])

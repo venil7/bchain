@@ -1,14 +1,15 @@
+use crate::commands::UserCommand;
 use crate::network::{
   bootstrap_init, request_latest_block, request_specific_block, NumPeersConsensus,
 };
 use crate::protocol::{BchainRequest, BchainResponse, Frame};
 use crate::swarm::{create_swarm, BchainSwarm};
-use crate::user_command::UserCommand;
 use async_std::channel::{self, Receiver, Sender};
 use async_std::prelude::FutureExt;
 use async_std::sync::{Mutex, RwLock};
 use async_std::{io, task};
 use bchain_db::database::{create_db, Db};
+use bchain_domain::address::Address;
 use bchain_domain::block::Block;
 use bchain_domain::tx::Tx;
 use bchain_domain::{cli::Cli, result::AppResult, wallet::Wallet};
@@ -137,8 +138,10 @@ impl Node {
       UserCommand::Bootstrap => self.bootstrap()?,
       UserCommand::Dial(peers) => self.dial_peers(peers.clone())?,
       UserCommand::Msg(msg) => self.publish_user_message(msg),
+      UserCommand::Balance(address) => self.print_balance(address),
+      UserCommand::Tx(address, amount) => self.submit_tx(address, *amount),
       UserCommand::Unrecognized => warn!("Unrecognized user input"),
-      command => warn!("Currently unsupported: {:?}", command),
+      // command => warn!("Currently unsupported: {:?}", command),
     }
     Ok(())
   }
@@ -335,5 +338,13 @@ impl Node {
     });
 
     Ok(())
+  }
+
+  pub(crate) fn print_balance(&self, address: &Option<Address>) {
+    info!("balance {:?}", address);
+  }
+
+  pub(crate) fn submit_tx(&self, address: &Address, amount: u64) {
+    info!("tx {:?} {:?}", address, amount);
   }
 }

@@ -71,7 +71,17 @@ mod tests {
 
   #[async_std::test]
   async fn load_wallet_from_pem_test() -> AppResult<()> {
-    let _wallet = Wallet::from_file(RSAKEY_PEM).await?;
+    let wallet = Wallet::from_file(RSAKEY_PEM).await;
+    assert!(wallet.is_ok());
+    Ok(())
+  }
+
+  #[async_std::test]
+  async fn load_wallet_from_pem_test_() -> AppResult<()> {
+    let wallet = Wallet::from_file(RSAKEY_PEM).await?;
+    let address = wallet.public_address();
+    let address1: Address = format!("{}", address).parse()?;
+    assert_eq!(address, address1);
     Ok(())
   }
 }

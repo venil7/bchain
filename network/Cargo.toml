@@ -5,6 +5,7 @@ edition = "2018"
 
 [dependencies]
 nom="7"
+anyhow="*"
 log="0.4"
 libp2p="0.39"
 futures = "0.3"
