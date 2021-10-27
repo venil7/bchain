@@ -37,6 +37,10 @@ impl Wallet {
     Tx::new(self, receiver, amount)
   }
 
+  pub fn new_coinbase_tx(&self, amount: u64) -> AppResult<Tx> {
+    Tx::new_coinbase(self, amount)
+  }
+
   pub fn public_key(&self) -> PublicKey {
     let internal_public_key = self.to_public_key();
     let modulus_bytes = internal_public_key.n().to_bytes_be();

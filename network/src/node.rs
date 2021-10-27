@@ -317,8 +317,6 @@ impl Node {
         }
 
         if local_latest_block < network_latest_block {
-          info!("Local id {:?}", local_latest_block);
-          info!("Network id {:?}", network_latest_block);
           let block = request_specific_block(
             network_latest_block.unwrap().id,
             &npc,

@@ -32,7 +32,7 @@ where
       },
     )
     .filter_map(|some: Option<_>| some);
-  return ret;
+  ret
 }
 
 pub fn group_default<S, G>(stream: S, group_num: usize) -> impl Stream<Item = S::Item>

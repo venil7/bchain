@@ -23,7 +23,7 @@ pub(crate) async fn bootstrap_init(
 ) -> AppResult<()> {
   let genesis = {
     let wallet = wallet.read().await;
-    let tx = wallet.new_tx(wallet.public_key(), 1000)?;
+    let tx = wallet.new_coinbase_tx(1_000_000)?;
     Block::new(Some([tx]))
   };
   let mut db = db.lock().await;

@@ -2,17 +2,15 @@ use crate::address::Address;
 use crate::public_key::PublicKey;
 use crate::signature::Signature;
 use crate::wallet::Wallet;
-use bchain_util::{
-  hash_digest::{AsBytes, Hashable},
-  result::AppResult,
-};
+use bchain_util::hash_digest::{AsBytes, Hashable};
+use bchain_util::result::AppResult;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 
 pub struct Tx {
   amount: u64,
-  sender: PublicKey,
+  sender: PublicKey, //PublicKey::default() for coinbase tx
   receiver: PublicKey,
   signature: Signature,
 }
@@ -24,6 +22,19 @@ impl Tx {
     transaction_body.extend_from_slice(&sender.as_bytes());
     transaction_body.extend_from_slice(&receiver.as_bytes());
     transaction_body
+  }
+
+  pub fn new_coinbase(wallet: &Wallet, amount: u64) -> AppResult<Tx> {
+    let sender = PublicKey::default();
+    let receiver = wallet.public_key();
+    let transaction_body = Tx::transaction_body(amount, &sender, &receiver);
+    let signature = wallet.sign_hashable(&transaction_body)?;
+    Ok(Tx {
+      amount,
+      sender,
+      receiver,
+      signature,
+    })
   }
 
   pub fn new(wallet: &Wallet, receiver: PublicKey, amount: u64) -> AppResult<Tx> {
@@ -47,7 +58,7 @@ impl Tx {
 
   pub fn diff_for_address(&self, address: &Address) -> i64 {
     if address == &Address::new(&self.sender) {
-      0 - self.amount as i64
+      0 - (self.amount as i64)
     } else if address == &Address::new(&self.receiver) {
       self.amount as i64
     } else {
@@ -62,7 +73,8 @@ impl AsBytes for Tx {
     res.extend_from_slice(&self.sender.as_bytes());
     res.extend_from_slice(&self.receiver.as_bytes());
     res.extend_from_slice(&self.amount.as_bytes());
-    // do not hash signature!
+    // do not hash signature
+    // signature used to sign bytes, so cant be included!
     res
   }
 }
