@@ -1,8 +1,8 @@
 use crate::address::Address;
-use crate::hash_digest::Hashable;
 use crate::public_key::PublicKey;
-use crate::result::AppResult;
 use crate::tx::Tx;
+use bchain_util::hash_digest::Hashable;
+use bchain_util::result::AppResult;
 use pkcs8::{FromPrivateKey, PrivateKeyDocument, ToPrivateKey};
 use rsa::{PublicKeyParts, RsaPrivateKey};
 use std::convert::TryFrom;
@@ -67,6 +67,7 @@ impl Wallet {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use bchain_util::result::AppResult;
   const RSAKEY_PEM: &str = "../rsakey.pem";
 
   #[async_std::test]

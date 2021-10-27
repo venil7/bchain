@@ -1,4 +1,4 @@
-use bchain_domain::{error::AppError, result::AppResult};
+use bchain_util::{error::AppError, result::AppResult};
 use libp2p::gossipsub::{
   self, subscription_filter::AllowAllSubscriptionFilter, Gossipsub, IdentTopic as Topic,
   IdentityTransform, MessageAuthenticity, ValidationMode,

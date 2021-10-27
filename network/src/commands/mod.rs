@@ -1,4 +1,5 @@
-use bchain_domain::{address::Address, error::AppError};
+use bchain_domain::address::Address;
+use bchain_util::error::AppError;
 use nom::branch::alt;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;

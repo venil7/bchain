@@ -1,9 +1,9 @@
 use crate::raw_block::RawBlock;
 use crate::schema::blocks;
 use bchain_domain::block::Block;
-use bchain_domain::error::AppError;
-use bchain_domain::hash_digest::Hashable;
-use bchain_domain::result::AppResult;
+use bchain_util::error::AppError;
+use bchain_util::hash_digest::Hashable;
+use bchain_util::result::AppResult;
 use diesel::prelude::*;
 use diesel::result::Error::NotFound;
 use diesel::SqliteConnection;

@@ -1,6 +1,6 @@
 use crate::schema::blocks;
 use bchain_domain::block::Block;
-use bchain_domain::error::AppError;
+use bchain_util::error::AppError;
 use chrono::NaiveDateTime;
 use std::convert::TryFrom;
 
@@ -40,7 +40,8 @@ impl TryFrom<RawBlock> for Block {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use bchain_domain::{block::Block, result::AppResult, tx::Tx, wallet::Wallet};
+  use bchain_domain::{block::Block, tx::Tx, wallet::Wallet};
+  use bchain_util::result::AppResult;
 
   const RSAKEY_PEM: &str = "../rsakey.pem";
 

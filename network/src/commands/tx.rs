@@ -25,7 +25,7 @@ pub(crate) fn tx_command(input: &str) -> IResult<&str, UserCommand> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use bchain_domain::result::AppResult;
+  use bchain_util::result::AppResult;
 
   const ADDRESS: &str = "FzpuKhDdqVu7Q3E7bCJLHnWGGxgaPjN9pi9ScvJiLt1XnFdrP1RBUTzpVkAGN2mNcUtAFrCVF1x7PbnKJRCHcXs2nEusKLnuFKR6fA4vXZC92vMDoWip71eUy7yGfFcFNTF17oHUrvPAwxfu2NKFp2wb8xtYPV4vCHowKG2Bh3kT5DVxjmjzDuNVSU6StVX3Lx7nj5Wz7AkmHL9rszTPQuVpfpLWQwUSnLb2Q4XfUsTCpuCvnxQDaxE8wH8nw7xBZV5SL8v4idCrqQVjcEt5uddwBRyYgEiGJyysYjiWWdfpf7QeoG6Qj4C9ZYmXCRqRJxJAd1Gioey2iF4stkxxEmLurwrR8r7sma";
 

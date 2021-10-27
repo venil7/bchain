@@ -1,6 +1,6 @@
 use crate::commands::UserCommand;
 use crate::network::{
-  bootstrap_init, request_latest_block, request_specific_block, NumPeersConsensus,
+  bootstrap_init, local_balance, request_latest_block, request_specific_block, NumPeersConsensus,
 };
 use crate::protocol::{BchainRequest, BchainResponse, Frame};
 use crate::swarm::{create_swarm, BchainSwarm};
@@ -12,8 +12,10 @@ use bchain_db::database::{create_db, Db};
 use bchain_domain::address::Address;
 use bchain_domain::block::Block;
 use bchain_domain::tx::Tx;
-use bchain_domain::{cli::Cli, result::AppResult, wallet::Wallet};
+use bchain_domain::{cli::Cli, wallet::Wallet};
 use bchain_util::group::peer_majority;
+use bchain_util::result::AppResult;
+use bchain_util::short::ShortDisplay;
 use futures::{prelude::*, select};
 use libp2p::gossipsub::{error::GossipsubHandlerError, GossipsubEvent, IdentTopic as Topic};
 use libp2p::{identity, swarm::SwarmEvent};
@@ -141,7 +143,6 @@ impl Node {
       UserCommand::Balance(address) => self.print_balance(address),
       UserCommand::Tx(address, amount) => self.submit_tx(address, *amount),
       UserCommand::Unrecognized => warn!("Unrecognized user input"),
-      // command => warn!("Currently unsupported: {:?}", command),
     }
     Ok(())
   }
@@ -341,7 +342,15 @@ impl Node {
   }
 
   pub(crate) fn print_balance(&self, address: &Option<Address>) {
-    info!("balance {:?}", address);
+    let wallet = self.wallet.clone();
+    let db = self.db.clone();
+    let address = address.clone();
+    task::spawn(async move {
+      let address = address.unwrap_or(wallet.read().await.public_address());
+      let balance = local_balance(&address, db).await?;
+      info!("Balance: ¢{} @ {}", balance, address.short());
+      Ok(()) as AppResult<()>
+    });
   }
 
   pub(crate) fn submit_tx(&self, address: &Address, amount: u64) {

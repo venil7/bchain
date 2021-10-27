@@ -1,6 +1,7 @@
-use crate::error::AppError;
-use crate::hash_digest::{AsBytes, Hashable};
 use crate::public_key::PublicKey;
+use bchain_util::error::AppError;
+use bchain_util::hash_digest::{AsBytes, Hashable};
+use bchain_util::short::ShortDisplay;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::str::FromStr;
@@ -28,6 +29,7 @@ impl AsBytes for Address {
 }
 
 impl Hashable for Address {}
+impl ShortDisplay for Address {}
 
 impl FromStr for Address {
   type Err = AppError;
@@ -41,8 +43,9 @@ impl FromStr for Address {
 
 #[cfg(test)]
 mod tests {
+  use bchain_util::result::AppResult;
+
   use super::*;
-  use crate::result::AppResult;
 
   #[test]
   fn address_parse_test() -> AppResult<()> {

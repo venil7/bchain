@@ -1,7 +1,7 @@
 use crate::address::Address;
-use crate::error::AppError;
-use crate::hash_digest::{AsBytes, Hashable};
-use crate::result::AppResult;
+use bchain_util::error::AppError;
+use bchain_util::hash_digest::{AsBytes, Hashable};
+use bchain_util::result::AppResult;
 use rsa::hash::Hash;
 use rsa::{BigUint, PaddingScheme, PublicKey as _, RsaPublicKey};
 use serde::{Deserialize, Serialize};

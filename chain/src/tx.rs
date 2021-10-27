@@ -1,8 +1,11 @@
-use crate::hash_digest::{AsBytes, Hashable};
+use crate::address::Address;
 use crate::public_key::PublicKey;
-use crate::result::AppResult;
 use crate::signature::Signature;
 use crate::wallet::Wallet;
+use bchain_util::{
+  hash_digest::{AsBytes, Hashable},
+  result::AppResult,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -41,6 +44,16 @@ impl Tx {
       .sender
       .verify_signature(&transaction_body.hash_digest().to_vec(), &self.signature)
   }
+
+  pub fn diff_for_address(&self, address: &Address) -> i64 {
+    if address == &Address::new(&self.sender) {
+      0 - self.amount as i64
+    } else if address == &Address::new(&self.receiver) {
+      self.amount as i64
+    } else {
+      0
+    }
+  }
 }
 
 impl AsBytes for Tx {
@@ -59,7 +72,7 @@ impl Hashable for Tx {}
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::{result::AppResult, wallet::Wallet};
+  use crate::wallet::Wallet;
   const RSAKEY_PEM: &str = "../rsakey.pem";
 
   #[async_std::test]

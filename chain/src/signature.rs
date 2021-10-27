@@ -1,5 +1,5 @@
-use crate::error::AppError;
-use crate::hash_digest::{AsBytes, Hashable};
+use bchain_util::error::AppError;
+use bchain_util::hash_digest::{AsBytes, Hashable};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::ops::Deref;

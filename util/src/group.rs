@@ -1,9 +1,10 @@
 use async_std::prelude::*;
 use async_std::stream::Stream;
-use bchain_domain::hash_digest::Hashable;
 use num::Integer;
 use std::collections::HashMap;
 use std::hash::Hash;
+
+use crate::hash_digest::Hashable;
 
 pub fn group_by<S, K, F>(stream: S, group_num: usize, get_index: F) -> impl Stream<Item = S::Item>
 where

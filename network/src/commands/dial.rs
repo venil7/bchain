@@ -23,7 +23,7 @@ pub(crate) fn dial_command(input: &str) -> IResult<&str, UserCommand> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use bchain_domain::result::AppResult;
+  use bchain_util::result::AppResult;
 
   #[test]
   fn user_command_dial_test() -> AppResult<()> {

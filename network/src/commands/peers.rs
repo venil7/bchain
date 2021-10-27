@@ -11,7 +11,7 @@ pub(crate) fn peers_command(input: &str) -> IResult<&str, UserCommand> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use bchain_domain::result::AppResult;
+  use bchain_util::result::AppResult;
 
   #[test]
   fn user_command_peers_test() -> AppResult<()> {

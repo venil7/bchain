@@ -1,4 +1,5 @@
-use bchain_domain::{block::Block, hash_digest::HashDigest, tx::Tx};
+use bchain_domain::{block::Block, tx::Tx};
+use bchain_util::hash_digest::HashDigest;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

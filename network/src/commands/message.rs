@@ -14,7 +14,7 @@ pub(crate) fn message_command(input: &str) -> IResult<&str, UserCommand> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use bchain_domain::result::AppResult;
+  use bchain_util::result::AppResult;
 
   #[test]
   fn user_command_message_positive_test() -> AppResult<()> {

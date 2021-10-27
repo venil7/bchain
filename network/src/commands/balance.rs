@@ -13,7 +13,7 @@ pub(crate) fn balance_command(input: &str) -> IResult<&str, UserCommand> {
   let command = tag("/balance");
   let address = alphanumeric1;
   let maybe_address = preceded(multispace1, alt((address, eof)));
-  let mut command = preceded(command, maybe_address);
+  let mut command = alt((preceded(&command, eof), preceded(&command, maybe_address)));
   let (remainder, addr) = command(input)?;
 
   match addr.parse() {
@@ -25,7 +25,7 @@ pub(crate) fn balance_command(input: &str) -> IResult<&str, UserCommand> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use bchain_domain::result::AppResult;
+  use bchain_util::result::AppResult;
 
   #[test]
   fn user_comand_balance_test() -> AppResult<()> {
@@ -38,7 +38,7 @@ mod tests {
 
   #[test]
   fn user_comand_balance_test_2() -> AppResult<()> {
-    let input = "/balance ";
+    let input = "/balance";
     let msg: UserCommand = input.parse()?;
     assert_eq!(msg, UserCommand::Balance(None));
     Ok(())

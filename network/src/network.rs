@@ -3,10 +3,12 @@ use async_std::channel::{Receiver, Sender};
 use async_std::future::timeout;
 use async_std::sync::{Mutex, RwLock};
 use bchain_db::database::Db;
+use bchain_domain::address::Address;
 use bchain_domain::block::Block;
-use bchain_domain::hash_digest::Hashable;
-use bchain_domain::{result::AppResult, wallet::Wallet};
+use bchain_domain::wallet::Wallet;
 use bchain_util::group::group_default;
+use bchain_util::hash_digest::Hashable;
+use bchain_util::result::AppResult;
 use futures::prelude::*;
 use log::info;
 use std::{sync::Arc, time::Duration};
@@ -54,4 +56,19 @@ pub(crate) async fn request_specific_block(
   let next = pinned_stream.next();
   let network_block = timeout(TIMEOUT, next);
   Ok(network_block.await?)
+}
+
+pub(crate) async fn local_balance(address: &Address, db: Arc<Mutex<Db>>) -> AppResult<i64> {
+  let mut id = 0;
+  let mut balance = 0;
+  loop {
+    let block = db.lock().await.get_block(id)?;
+    if let Some(block) = block {
+      balance += block.diff_for_address(address);
+      id += 1;
+    } else {
+      break;
+    }
+  }
+  Ok(balance)
 }

@@ -2,15 +2,10 @@
 name = "main"
 path = "src/main.rs"
 
-[[bin]] 
-name = "diesel"
-path = "src/diesel.rs"
-
 [package]
 name = "bchain"
 version = "0.1.0"
 authors = ["darkruby <art@darkruby.co.uk>"]
-# edition = "2018"
 edition = "2021"
 
 [dependencies]
@@ -20,6 +15,7 @@ structopt = "0.3"
 pretty_env_logger = "0.4"
 async-std = {version="1.9.0", features=["attributes"]}
 bchain-db = { path = "db" }
+bchain-util = { path = "util" }
 bchain-domain = { path = "chain" }
 bchain-network = { path = "network" }
 

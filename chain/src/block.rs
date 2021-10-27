@@ -1,7 +1,6 @@
-use crate::hash_digest::AsBytes;
-use crate::hash_digest::HashDigest;
-use crate::hash_digest::Hashable;
+use crate::address::Address;
 use crate::tx::Tx;
+use bchain_util::hash_digest::{AsBytes, HashDigest, Hashable};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -70,6 +69,13 @@ impl Block {
     let key = tx.hash_digest().to_string();
     self.txs.insert(key, tx.clone());
   }
+
+  pub fn diff_for_address(&self, address: &Address) -> i64 {
+    self
+      .txs
+      .values()
+      .fold(0, |acc, tx| acc + tx.diff_for_address(address))
+  }
 }
 
 impl Default for Block {
@@ -92,8 +98,10 @@ impl Display for Block {
 
 #[cfg(test)]
 mod tests {
+  use bchain_util::result::AppResult;
+
   use super::*;
-  use crate::{result::AppResult, wallet::Wallet};
+  use crate::wallet::Wallet;
 
   const RSAKEY_PEM: &str = "../rsakey.pem";
 
