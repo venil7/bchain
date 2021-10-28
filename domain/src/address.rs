@@ -1,7 +1,6 @@
 use crate::public_key::PublicKey;
 use bchain_util::error::AppError;
 use bchain_util::hash_digest::{AsBytes, Hashable};
-use bchain_util::short::ShortDisplay;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::str::FromStr;
@@ -29,7 +28,7 @@ impl AsBytes for Address {
 }
 
 impl Hashable for Address {}
-impl ShortDisplay for Address {}
+// impl ShortDisplay for Address {}
 
 impl FromStr for Address {
   type Err = AppError;

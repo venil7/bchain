@@ -136,7 +136,7 @@ impl Node {
   fn handle_user_command(&mut self, cmd: &UserCommand) -> AppResult<()> {
     match cmd {
       UserCommand::Peers => self.display_peers(),
-      &UserCommand::Blocks => self.display_blocks(),
+      UserCommand::Blocks => self.display_blocks(),
       UserCommand::Bootstrap => self.bootstrap()?,
       UserCommand::Dial(peers) => self.dial_peers(peers.clone())?,
       UserCommand::Msg(msg) => self.publish_user_message(msg),
@@ -158,6 +158,9 @@ impl Node {
           Frame::BchainResponse(response) => self.handle_bchain_response(response),
           _ => warn!("Unrecognized bchain event"),
         }
+      }
+      SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+        info!("Peer connected: {}", peer_id.short_display());
       }
       SwarmEvent::NewListenAddr { address, .. } => info!("Listening on {:?}", address),
       _ => (),
@@ -346,7 +349,7 @@ impl Node {
     task::spawn(async move {
       let address = address.unwrap_or(wallet.read().await.public_address());
       let balance = local_balance(&address, db).await?;
-      info!("Balance: ¢{} @ {}", balance, address.short());
+      info!("Balance: ¢{} @ {}", balance, address.short_display());
       Ok(()) as AppResult<()>
     });
   }

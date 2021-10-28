@@ -14,15 +14,14 @@ dotenv="0.15"
 structopt = "0.3"
 pretty_env_logger = "0.4"
 async-std = {version="1.9.0", features=["attributes"]}
-bchain-db = { path = "db" }
 bchain-util = { path = "util" }
-bchain-domain = { path = "chain" }
+bchain-domain = { path = "domain" }
 bchain-network = { path = "network" }
 
 [workspace]
 members = [
 	"db",
-	"chain",
-	"network",
 	"util",
+	"domain",
+	"network",
 ]
