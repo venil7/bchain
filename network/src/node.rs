@@ -83,7 +83,7 @@ impl Node {
         .fuse(),
     );
 
-    let mut cmd_lines = io::BufReader::new(io::stdin()).lines();
+    let mut cmd_lines = io::BufReader::new(io::stdin()).lines().fuse();
 
     let (_, mut network_responses) = self.network_responses.clone();
     let (_, mut network_requests) = self.network_requests.clone();
@@ -91,25 +91,18 @@ impl Node {
     loop {
       select! {
         _ = bootstrap => self.bootstrap()?,
-        response = network_responses.next().fuse() => {
-          if let Some(ref response) = response {
-            self.publish_response(response)?;
-          }
+        response = network_responses.select_next_some().fuse() => {
+            self.publish_response(&response)?;
         },
-        request = network_requests.next().fuse() => {
-          if let Some(ref request) = request {
-            self.publish_request(request)?;
-          }
+        request = network_requests.select_next_some().fuse() => {
+            self.publish_request(&request)?;
         },
-        event = self.swarm.next().fuse() => {
-          if let Some(ref swarm_event) = event {
-            self.handle_swarm_event(swarm_event)?;
-          }
+        swarm_event = self.swarm.select_next_some().fuse() => {
+            self.handle_swarm_event(&swarm_event)?;
         },
-        cmd_line = cmd_lines.next().fuse() => {
-          if let Some(Ok(ref line)) = cmd_line {
-            let command = line.parse()?;
-            self.handle_user_command(&command)?;
+        cmd_line = cmd_lines.select_next_some().fuse() => {
+          if let Ok(line) = cmd_line {
+            self.handle_user_command(&line.parse()?)?;
           }
         },
         complete => break,
