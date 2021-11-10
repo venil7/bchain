@@ -41,11 +41,32 @@ impl Default for HashDigest {
     HashDigest([0u8; HASH_LENGTH])
   }
 }
+
 impl AsBytes for HashDigest {
   fn as_bytes(&self) -> Vec<u8> {
     self.0.to_vec()
   }
 }
+
+impl HashDigest {
+  pub fn difficulty(&self) -> usize {
+    self.0.iter().take_while(|&&b| b == 0).count()
+  }
+}
+
+impl PartialOrd for HashDigest {
+  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    match self.0.partial_cmp(&other.0) {
+      eq @ Some(std::cmp::Ordering::Equal) => eq,
+      _ => {
+        let z1: usize = self.0.iter().take_while(|&&b| b == 0).count();
+        let z2 = other.0.iter().take_while(|&&b| b == 0).count();
+        z1.partial_cmp(&z2)
+      }
+    }
+  }
+}
+
 impl<T> AsBytes for Option<T>
 where
   T: AsBytes,
@@ -89,6 +110,7 @@ impl AsBytes for i64 {
     bs.to_vec()
   }
 }
+
 impl AsBytes for u64 {
   fn as_bytes(&self) -> std::vec::Vec<u8> {
     let mut bs = [0u8; mem::size_of::<u64>()];
@@ -98,6 +120,7 @@ impl AsBytes for u64 {
     bs.to_vec()
   }
 }
+
 impl AsBytes for Vec<u8> {
   fn as_bytes(&self) -> Vec<u8> {
     self.to_vec()
@@ -108,6 +131,10 @@ pub trait Hashable: AsBytes {
   fn hash_digest(&self) -> HashDigest {
     let digest: Vec<u8> = Sha256::digest(&self.as_bytes()).into_iter().collect();
     digest.into()
+  }
+
+  fn hash_difficulty(&self) -> usize {
+    self.hash_digest().difficulty()
   }
 }
 
@@ -156,6 +183,20 @@ mod tests {
     let h1 = String::from("abc").hash_digest();
     let h2 = String::from("abc").hash_digest();
     assert_eq!(h1, h2);
+    Ok(())
+  }
+
+  #[test]
+  fn hash_equality_less() -> AppResult<()> {
+    let h1 = HashDigest::from(vec![
+      0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1,
+    ]);
+    let h2 = HashDigest::from(vec![
+      0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1,
+    ]);
+    assert!(h1 > h2); // moere leading zeroes
     Ok(())
   }
 }

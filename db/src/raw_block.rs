@@ -43,7 +43,7 @@ mod tests {
   use bchain_domain::{block::Block, tx::Tx, wallet::Wallet};
   use bchain_util::result::AppResult;
 
-  const RSAKEY_PEM: &str = "../rsakey.pem";
+  const RSAKEY_PEM: &str = "../pem/rsakey.pem";
 
   #[async_std::test]
   async fn to_raw_and_back() -> AppResult<()> {

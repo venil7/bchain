@@ -2,6 +2,7 @@ use crate::address::Address;
 use crate::tx::Tx;
 use bchain_util::hash_digest::{AsBytes, HashDigest, Hashable};
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Display;
 
@@ -85,8 +86,11 @@ impl Default for Block {
 }
 
 impl PartialOrd for Block {
-  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-    (self.id, self.timestamp).partial_cmp(&(other.id, other.timestamp))
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    match self.id.cmp(&other.id) {
+      Ordering::Equal => Some(self.hash_digest().cmp(&other.hash_digest())),
+      other => Some(other),
+    }
   }
 }
 
@@ -103,7 +107,7 @@ mod tests {
   use super::*;
   use crate::wallet::Wallet;
 
-  const RSAKEY_PEM: &str = "../rsakey.pem";
+  const RSAKEY_PEM: &str = "../pem/rsakey.pem";
 
   #[async_std::test]
   async fn bloc_equality_test() -> AppResult<()> {

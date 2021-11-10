@@ -222,7 +222,14 @@ impl Node {
   }
 
   fn num_peers_consensus(&self) -> NumPeersConsensus {
-    let num_peers = self.swarm.network_info().num_peers();
+    // let topic_hash = self.topic.hash();
+    let num_peers = self
+      .swarm
+      .behaviour()
+      .all_peers()
+      // .mesh_peers(&topic_hash)
+      .collect::<Vec<_>>()
+      .len();
     (num_peers, peer_majority(num_peers))
   }
 

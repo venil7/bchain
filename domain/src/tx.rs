@@ -85,7 +85,7 @@ impl Hashable for Tx {}
 mod tests {
   use super::*;
   use crate::wallet::Wallet;
-  const RSAKEY_PEM: &str = "../rsakey.pem";
+  const RSAKEY_PEM: &str = "../pem/rsakey.pem";
 
   #[async_std::test]
   async fn verify_transaction_serializaton() -> AppResult<()> {

@@ -5,7 +5,8 @@ use structopt::StructOpt;
 static DEFAULT_DATABASE: Lazy<String> =
   Lazy::new(|| var("DATABASE").unwrap_or("chain.sqlite".into()));
 static DEFAULT_NET: Lazy<String> = Lazy::new(|| var("NET").unwrap_or("main".into()));
-static DEFAULT_WALLET: Lazy<String> = Lazy::new(|| var("WALLET").unwrap_or("rsakey.pem".into()));
+static DEFAULT_WALLET: Lazy<String> =
+  Lazy::new(|| var("WALLET").unwrap_or("pem/rsakey.pem".into()));
 static DEFAULT_LISTEN: Lazy<String> =
   Lazy::new(|| var("LISTEN").unwrap_or("/ip4/0.0.0.0/tcp/0".into()));
 
