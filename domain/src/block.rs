@@ -1,6 +1,9 @@
 use crate::address::Address;
 use crate::tx::Tx;
+use async_trait::async_trait;
 use bchain_util::hash_digest::{AsBytes, HashDigest, Hashable};
+use bchain_util::mine::Mine;
+use num::{BigUint, One, Zero};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -32,17 +35,31 @@ impl AsBytes for Block {
 
 impl Hashable for Block {}
 
+#[async_trait]
+impl Mine for Block {
+  async fn mine(&mut self, difficulty: usize) {
+    let one: BigUint = One::one();
+    let mut nonce = BigUint::from_bytes_be(&self.nonce);
+
+    while self.hash_difficulty() < difficulty {
+      nonce = nonce + &one;
+      self.nonce = nonce.to_bytes_be();
+    }
+  }
+}
+
 impl Block {
   pub fn new<TXs>(txs: Option<TXs>) -> Block
   where
     TXs: IntoIterator<Item = Tx>,
   {
+    let nonce: BigUint = Zero::zero();
     let mut block = Block {
       id: 0,
       timestamp: chrono::Utc::now().timestamp(),
       txs: Default::default(),
       parent_hash: None,
-      nonce: vec![],
+      nonce: nonce.to_bytes_be(),
     };
     if let Some(txs) = txs {
       for tx in txs {
@@ -102,10 +119,10 @@ impl Display for Block {
 
 #[cfg(test)]
 mod tests {
-  use bchain_util::result::AppResult;
-
   use super::*;
   use crate::wallet::Wallet;
+  use bchain_util::hash_digest::Hashable;
+  use bchain_util::result::AppResult;
 
   const RSAKEY_PEM: &str = "../pem/rsakey.pem";
 
@@ -121,6 +138,30 @@ mod tests {
     let block: Block = serde_json::from_str(&json)?;
     let hash2 = block.hash_digest();
     assert_eq!(hash1, hash2);
+    Ok(())
+  }
+
+  #[async_std::test]
+  async fn difficulty_test_1() -> AppResult<()> {
+    let mut block = Block::default();
+    block.mine(1).await;
+    assert_eq!(block.hash_difficulty(), 1);
+    Ok(())
+  }
+
+  #[async_std::test]
+  async fn difficulty_test_2() -> AppResult<()> {
+    let mut block = Block::default();
+    block.mine(2).await;
+    assert_eq!(block.hash_difficulty(), 2);
+    Ok(())
+  }
+
+  #[async_std::test]
+  async fn difficulty_test_3() -> AppResult<()> {
+    let mut block = Block::default();
+    block.mine(3).await;
+    assert_eq!(block.hash_difficulty(), 3);
     Ok(())
   }
 }
