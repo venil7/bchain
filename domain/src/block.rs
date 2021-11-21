@@ -1,13 +1,17 @@
 use crate::address::Address;
 use crate::tx::Tx;
+use async_std::task;
 use async_trait::async_trait;
 use bchain_util::hash_digest::{AsBytes, HashDigest, Hashable};
 use bchain_util::mine::Mine;
+use itertools::iterate;
 use num::{BigUint, One, Zero};
+use rayon::iter::{ParallelBridge, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::iter::repeat;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Block {
@@ -38,13 +42,20 @@ impl Hashable for Block {}
 #[async_trait]
 impl Mine for Block {
   async fn mine(&mut self, difficulty: usize) {
-    let one: BigUint = One::one();
-    let mut nonce = BigUint::from_bytes_be(&self.nonce);
-
-    while self.hash_difficulty() < difficulty {
-      nonce = nonce + &one;
-      self.nonce = nonce.to_bytes_be();
-    }
+    let block = self.clone();
+    self.nonce = task::spawn(async move {
+      let zero: BigUint = Zero::zero();
+      let one: BigUint = One::one();
+      let copies = repeat(block);
+      let iterator = iterate(zero, move |n| n + &one)
+        .map(|num| num.to_bytes_be())
+        .zip(copies);
+      let bridge = iterator.par_bridge();
+      let solution =
+        bridge.find_any(|(nonce, blk)| blk.nonce_matches_difficulty(nonce, difficulty));
+      solution.unwrap().0
+    })
+    .await;
   }
 }
 
@@ -73,9 +84,8 @@ impl Block {
     Block {
       id: previous_block.id + 1,
       timestamp: chrono::Utc::now().timestamp(),
-      txs: Default::default(),
       parent_hash: Some(previous_block.hash_digest()),
-      nonce: vec![],
+      ..Default::default()
     }
   }
 
@@ -93,6 +103,12 @@ impl Block {
       .txs
       .values()
       .fold(0, |acc, tx| acc + tx.diff_for_address(address))
+  }
+
+  pub fn nonce_matches_difficulty(&self, nonce: &Vec<u8>, difficulty: usize) -> bool {
+    let mut block = self.clone();
+    block.nonce = nonce.clone();
+    block.hash_difficulty() >= difficulty
   }
 }
 
@@ -145,7 +161,7 @@ mod tests {
   async fn difficulty_test_1() -> AppResult<()> {
     let mut block = Block::default();
     block.mine(1).await;
-    assert_eq!(block.hash_difficulty(), 1);
+    assert!(block.hash_difficulty() >= 1);
     Ok(())
   }
 
@@ -153,7 +169,7 @@ mod tests {
   async fn difficulty_test_2() -> AppResult<()> {
     let mut block = Block::default();
     block.mine(2).await;
-    assert_eq!(block.hash_difficulty(), 2);
+    assert!(block.hash_difficulty() >= 2);
     Ok(())
   }
 
@@ -161,7 +177,7 @@ mod tests {
   async fn difficulty_test_3() -> AppResult<()> {
     let mut block = Block::default();
     block.mine(3).await;
-    assert_eq!(block.hash_difficulty(), 3);
+    assert!(block.hash_difficulty() >= 3);
     Ok(())
   }
 }
