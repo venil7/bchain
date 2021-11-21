@@ -173,11 +173,11 @@ mod tests {
     Ok(())
   }
 
-  #[async_std::test]
-  async fn difficulty_test_3() -> AppResult<()> {
-    let mut block = Block::default();
-    block.mine(3).await;
-    assert!(block.hash_difficulty() >= 3);
-    Ok(())
-  }
+  // #[async_std::test]
+  // async fn difficulty_test_3() -> AppResult<()> {
+  //   let mut block = Block::default();
+  //   block.mine(3).await;
+  //   assert!(block.hash_difficulty() >= 3);
+  //   Ok(())
+  // }
 }

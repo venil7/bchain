@@ -1,0 +1,26 @@
+name: Rust
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build
+        run: cargo build --release
+      - name: Run tests
+        run: |
+          sudo apt update
+          sudo apt install openssl -y
+          mkdir -p pem
+          openssl genpkey -out ./pem/rsakey.pem -algorithm RSA -pkeyopt rsa_keygen_bits:2048
+          cargo test --release --workspace --tests
