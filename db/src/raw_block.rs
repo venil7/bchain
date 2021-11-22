@@ -50,7 +50,7 @@ mod tests {
     let wallet = Wallet::from_file(RSAKEY_PEM).await?;
     let genesis = Block::default();
     let mut block = Block::from_previous(&genesis);
-    let tx = Tx::new(&wallet, wallet.public_key(), 1234)?;
+    let tx = Tx::new(&wallet, &wallet.address(), 1234)?;
     block.add(&tx);
     let raw = RawBlock::try_from(&block)?;
     let block1 = Block::try_from(raw)?;

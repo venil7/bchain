@@ -10,8 +10,8 @@ use nom::{
 
 pub(crate) fn tx_command(input: &str) -> IResult<&str, UserCommand> {
   let command = preceded(tag("/tx"), space1);
-  let mut command = preceded(command, tuple((alphanumeric1, space1, digit1, eof)));
-  let (remainder, (recipient, _, amount, _)) = command(input)?;
+  let mut command = preceded(command, tuple((digit1, space1, alphanumeric1, eof)));
+  let (remainder, (amount, _, recipient, _)) = command(input)?;
 
   let recipient = recipient.parse();
   let amount = amount.parse();
@@ -31,7 +31,7 @@ mod tests {
 
   #[test]
   fn user_command_tx_positive_test() -> AppResult<()> {
-    let input = format!("/tx {} {}", ADDRESS, 123);
+    let input = format!("/tx {} {}", 123, ADDRESS);
     let tx: UserCommand = input.parse()?;
     assert_eq!(tx, UserCommand::Tx(ADDRESS.parse()?, 123));
     Ok(())
@@ -39,7 +39,7 @@ mod tests {
 
   #[test]
   fn user_command_tx_negative_test() -> AppResult<()> {
-    let input = "/tx someaddress123 123.45";
+    let input = "/tx someaddress123 abc";
     let msg = input.parse::<UserCommand>()?;
     assert_eq!(msg, UserCommand::Unrecognized);
     Ok(())

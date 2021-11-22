@@ -105,9 +105,9 @@ impl Block {
       .fold(0, |acc, tx| acc + tx.diff_for_address(address))
   }
 
-  pub fn nonce_matches_difficulty(&self, nonce: &Vec<u8>, difficulty: usize) -> bool {
+  pub fn nonce_matches_difficulty(&self, nonce: &[u8], difficulty: usize) -> bool {
     let mut block = self.clone();
-    block.nonce = nonce.clone();
+    block.nonce = nonce.to_owned();
     block.hash_difficulty() >= difficulty
   }
 }
@@ -147,7 +147,7 @@ mod tests {
     let wallet = Wallet::from_file(RSAKEY_PEM).await?;
     let genesis = Block::default();
     let mut block = Block::from_previous(&genesis);
-    let tx = Tx::new(&wallet, wallet.public_key(), 1234)?;
+    let tx = Tx::new(&wallet, &wallet.address(), 1234)?;
     block.add(&tx);
     let hash1 = block.hash_digest();
     let json = serde_json::to_string(&block)?;

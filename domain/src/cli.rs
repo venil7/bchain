@@ -3,12 +3,13 @@ use std::env::var;
 use structopt::StructOpt;
 
 static DEFAULT_DATABASE: Lazy<String> =
-  Lazy::new(|| var("DATABASE").unwrap_or("chain.sqlite".into()));
-static DEFAULT_NET: Lazy<String> = Lazy::new(|| var("NET").unwrap_or("main".into()));
+  Lazy::new(|| var("DATABASE").unwrap_or_else(|_| "chain.sqlite".into()));
+static DEFAULT_NET: Lazy<String> =
+  Lazy::new(|| var("NET").unwrap_or_else(|_| "chain.sqlite".into()));
 static DEFAULT_WALLET: Lazy<String> =
-  Lazy::new(|| var("WALLET").unwrap_or("pem/rsakey.pem".into()));
+  Lazy::new(|| var("WALLET").unwrap_or_else(|_| "pem/rsakey.pem".into()));
 static DEFAULT_LISTEN: Lazy<String> =
-  Lazy::new(|| var("LISTEN").unwrap_or("/ip4/0.0.0.0/tcp/0".into()));
+  Lazy::new(|| var("LISTEN").unwrap_or_else(|_| "/ip4/0.0.0.0/tcp/0".into()));
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(name = env!("CARGO_PKG_NAME"), version = env!("CARGO_PKG_VERSION"), author = env!("CARGO_PKG_AUTHORS"), about = env!("CARGO_PKG_DESCRIPTION"))]

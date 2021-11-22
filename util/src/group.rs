@@ -13,7 +13,7 @@ where
   F: 'static + Fn(&S::Item) -> K,
 {
   assert!(group_num > 0);
-  let ret = stream
+  stream
     .scan(
       HashMap::default() as HashMap<K, usize>,
       move |state, item| {
@@ -31,8 +31,7 @@ where
         }
       },
     )
-    .filter_map(|some: Option<_>| some);
-  ret
+    .filter_map(|some: Option<_>| some)
 }
 
 pub fn group_default<S, G>(stream: S, group_num: usize) -> impl Stream<Item = S::Item>

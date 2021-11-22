@@ -162,7 +162,7 @@ impl Node {
   }
 
   fn handle_bchain_request(&mut self, request: BchainRequest) {
-    info!("Network request: {:?}", request);
+    info!("Network request: {}", request.to_string());
     match request {
       BchainRequest::AskLatest => self.respond_latest_block(),
       BchainRequest::AskBlock(id) => self.respond_block(id),
@@ -222,14 +222,7 @@ impl Node {
   }
 
   fn num_peers_consensus(&self) -> NumPeersConsensus {
-    // let topic_hash = self.topic.hash();
-    let num_peers = self
-      .swarm
-      .behaviour()
-      .all_peers()
-      // .mesh_peers(&topic_hash)
-      .collect::<Vec<_>>()
-      .len();
+    let num_peers = self.swarm.behaviour().all_peers().count();
     (num_peers, peer_majority(num_peers))
   }
 
@@ -342,19 +335,31 @@ impl Node {
     Ok(())
   }
 
+  #[allow(clippy::or_fun_call)]
   pub(crate) fn print_balance(&self, address: &Option<Address>) {
     let wallet = self.wallet.clone();
     let db = self.db.clone();
     let address = address.clone();
     task::spawn(async move {
-      let address = address.unwrap_or(wallet.read().await.public_address());
+      let address = address.unwrap_or(wallet.read().await.address());
       let balance = local_balance(&address, db).await?;
-      info!("Balance: ¢{} @ {}", balance, address.short_display());
+      info!("Wallet: {}", address);
+      info!("Balance: ¢{}", balance);
       Ok(()) as AppResult<()>
     });
   }
 
-  pub(crate) fn submit_tx(&self, address: &Address, amount: u64) {
-    info!("tx {:?} {:?}", address, amount);
+  pub(crate) fn submit_tx(&self, recipient: &Address, amount: u64) {
+    let (send_network_request, _) = self.network_requests.clone();
+    let wallet = self.wallet.clone();
+    let recipient = recipient.clone();
+    task::spawn(async move {
+      let wallet = wallet.read().await;
+      let tx = wallet.new_tx(&recipient, amount)?;
+      send_network_request
+        .send(BchainRequest::SubmitTx(tx))
+        .await?;
+      AppResult::Ok(())
+    });
   }
 }

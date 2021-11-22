@@ -1,5 +1,5 @@
 use bchain_domain::{block::Block, tx::Tx};
-use bchain_util::hash_digest::HashDigest;
+use bchain_util::hash_digest::{HashDigest, Hashable};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -32,4 +32,14 @@ pub enum BchainError {
   Tx(HashDigest),
   Block(HashDigest),
   Generic(String),
+}
+
+impl ToString for BchainRequest {
+  fn to_string(&self) -> String {
+    match self {
+      BchainRequest::SubmitBlock(block) => format!("SubmitBlock({})", block.hash_digest()),
+      BchainRequest::SubmitTx(tx) => format!("SubmitTx({})", tx.hash_digest()),
+      other => format!("{:?}", other),
+    }
+  }
 }

@@ -33,7 +33,7 @@ impl Wallet {
     }
   }
 
-  pub fn new_tx(&self, receiver: PublicKey, amount: u64) -> AppResult<Tx> {
+  pub fn new_tx(&self, receiver: &Address, amount: u64) -> AppResult<Tx> {
     Tx::new(self, receiver, amount)
   }
 
@@ -51,7 +51,7 @@ impl Wallet {
     PublicKey::try_new(&bytes).expect("failed to get public key")
   }
 
-  pub fn public_address(&self) -> Address {
+  pub fn address(&self) -> Address {
     self.public_key().to_address()
   }
 
@@ -84,7 +84,7 @@ mod tests {
   #[async_std::test]
   async fn load_wallet_from_pem_test_() -> AppResult<()> {
     let wallet = Wallet::from_file(RSAKEY_PEM).await?;
-    let address = wallet.public_address();
+    let address = wallet.address();
     let address1: Address = format!("{}", address).parse()?;
     assert_eq!(address, address1);
     Ok(())

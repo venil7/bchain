@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::str::FromStr;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Address(PublicKey);
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct Address(pub PublicKey);
 
 impl Display for Address {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
@@ -28,7 +28,6 @@ impl AsBytes for Address {
 }
 
 impl Hashable for Address {}
-// impl ShortDisplay for Address {}
 
 impl FromStr for Address {
   type Err = AppError;
@@ -37,6 +36,12 @@ impl FromStr for Address {
       Ok(bytes) => Ok(Address(PublicKey::try_new(&bytes)?)),
       Err(e) => Err(AppError::msg(format!("{:?}", e))),
     }
+  }
+}
+
+impl From<PublicKey> for Address {
+  fn from(pub_key: PublicKey) -> Self {
+    Address::new(&pub_key)
   }
 }
 

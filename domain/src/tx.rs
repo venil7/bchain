@@ -10,13 +10,13 @@ use serde::{Deserialize, Serialize};
 
 pub struct Tx {
   amount: u64,
-  sender: PublicKey, //PublicKey::default() for coinbase tx
-  receiver: PublicKey,
+  sender: Address, //PublicKey::default() for coinbase tx
+  receiver: Address,
   signature: Signature,
 }
 
 impl Tx {
-  fn transaction_body(amount: u64, sender: &PublicKey, receiver: &PublicKey) -> Vec<u8> {
+  fn transaction_body(amount: u64, sender: &Address, receiver: &Address) -> Vec<u8> {
     let mut transaction_body = vec![];
     transaction_body.extend_from_slice(&amount.as_bytes());
     transaction_body.extend_from_slice(&sender.as_bytes());
@@ -25,8 +25,8 @@ impl Tx {
   }
 
   pub fn new_coinbase(wallet: &Wallet, amount: u64) -> AppResult<Tx> {
-    let sender = PublicKey::default();
-    let receiver = wallet.public_key();
+    let sender = Address::default();
+    let receiver = wallet.address();
     let transaction_body = Tx::transaction_body(amount, &sender, &receiver);
     let signature = wallet.sign_hashable(&transaction_body)?;
     Ok(Tx {
@@ -37,10 +37,11 @@ impl Tx {
     })
   }
 
-  pub fn new(wallet: &Wallet, receiver: PublicKey, amount: u64) -> AppResult<Tx> {
-    let sender = wallet.public_key();
-    let transaction_body = Tx::transaction_body(amount, &sender, &receiver);
+  pub fn new(wallet: &Wallet, receiver: &Address, amount: u64) -> AppResult<Tx> {
+    let sender = wallet.address();
+    let transaction_body = Tx::transaction_body(amount, &sender, receiver);
     let signature = wallet.sign_hashable(&transaction_body)?;
+    let receiver = receiver.clone();
     Ok(Tx {
       amount,
       sender,
@@ -51,15 +52,14 @@ impl Tx {
 
   pub fn verify_signature(&self) -> AppResult<()> {
     let transaction_body = Tx::transaction_body(self.amount, &self.sender, &self.receiver);
-    self
-      .sender
-      .verify_signature(&transaction_body.hash_digest().to_vec(), &self.signature)
+    let pub_key: PublicKey = self.sender.clone().into();
+    pub_key.verify_signature(&transaction_body.hash_digest().to_vec(), &self.signature)
   }
 
   pub fn diff_for_address(&self, address: &Address) -> i64 {
-    if address == &Address::new(&self.sender) {
+    if address == &self.sender {
       0 - (self.amount as i64)
-    } else if address == &Address::new(&self.receiver) {
+    } else if address == &self.receiver {
       self.amount as i64
     } else {
       0
@@ -91,7 +91,7 @@ mod tests {
   async fn verify_transaction_serializaton() -> AppResult<()> {
     let wallet = Wallet::from_file(RSAKEY_PEM).await?;
 
-    let tx = Tx::new(&wallet, wallet.public_key(), 1234)?;
+    let tx = Tx::new(&wallet, &wallet.address(), 1234)?;
 
     let json = serde_json::to_string(&tx)?;
     let hash = tx.hash_digest();
@@ -107,7 +107,7 @@ mod tests {
   #[async_std::test]
   async fn verify_legit_tx() -> AppResult<()> {
     let wallet = Wallet::from_file(RSAKEY_PEM).await?;
-    let tx = Tx::new(&wallet, wallet.public_key(), 1234)?;
+    let tx = Tx::new(&wallet, &wallet.address(), 1234)?;
     tx.verify_signature()?;
     Ok(())
   }

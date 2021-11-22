@@ -48,6 +48,12 @@ impl AsBytes for PublicKey {
   }
 }
 
+impl From<Address> for PublicKey {
+  fn from(addr: Address) -> Self {
+    addr.0
+  }
+}
+
 impl Hashable for PublicKey {}
 
 impl PublicKey {
