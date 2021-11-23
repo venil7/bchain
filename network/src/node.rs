@@ -24,21 +24,20 @@ use std::{sync::Arc, time::Duration};
 
 type Channel<T> = (Sender<T>, Receiver<T>);
 
+#[allow(dead_code)]
 pub struct Node {
   cli: Cli,
   topic: Topic,
   db: Arc<Mutex<Db>>,
   wallet: Arc<RwLock<Wallet>>,
   swarm: BchainSwarm,
-  #[allow(dead_code)]
-  bootstrapped: Arc<RwLock<bool>>,
-
+  // #[allow(dead_code)]
+  // bootstrapped: Arc<RwLock<bool>>,
   network_latest: Channel<Block>,
   network_blocks: Channel<Block>,
-  #[allow(dead_code)]
-  accepted_blocks: Channel<Block>,
-  #[allow(dead_code)]
-  accepted_tx: Channel<Tx>,
+
+  proposed_blocks: Channel<Block>,
+  proposed_tx: Channel<Tx>,
 
   network_responses: Channel<BchainResponse>,
   network_requests: Channel<BchainRequest>,
@@ -62,11 +61,10 @@ impl Node {
       swarm,
       db: Arc::new(Mutex::new(db)),
       wallet: Arc::new(RwLock::new(wallet)),
-      bootstrapped: Arc::new(RwLock::new(false)),
       network_latest: channel::unbounded(),
       network_blocks: channel::unbounded(),
-      accepted_blocks: channel::unbounded(),
-      accepted_tx: channel::unbounded(),
+      proposed_blocks: channel::unbounded(),
+      proposed_tx: channel::unbounded(),
       network_responses: channel::unbounded(),
       network_requests: channel::unbounded(),
     })
@@ -166,8 +164,10 @@ impl Node {
     match request {
       BchainRequest::AskLatest => self.respond_latest_block(),
       BchainRequest::AskBlock(id) => self.respond_block(id),
+      BchainRequest::SubmitTx(tx) => self.handle_proposed_tx(tx),
+      BchainRequest::SubmitBlock(block) => self.handle_proposed_block(block),
       BchainRequest::Msg(msg) => info!("{}", msg),
-      _ => warn!("Unhandled bchain request"),
+      // _ => warn!("Unhandled bchain request"),
     }
   }
 
@@ -359,6 +359,22 @@ impl Node {
       send_network_request
         .send(BchainRequest::SubmitTx(tx))
         .await?;
+      AppResult::Ok(())
+    });
+  }
+
+  pub(crate) fn handle_proposed_tx(&self, tx: Tx) {
+    let (send_network_request, _) = self.proposed_tx.clone();
+    task::spawn(async move {
+      send_network_request.send(tx).await?;
+      AppResult::Ok(())
+    });
+  }
+
+  pub(crate) fn handle_proposed_block(&self, block: Block) {
+    let (send_network_request, _) = self.proposed_blocks.clone();
+    task::spawn(async move {
+      send_network_request.send(block).await?;
       AppResult::Ok(())
     });
   }
