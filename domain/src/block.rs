@@ -4,6 +4,7 @@ use async_std::task;
 use async_trait::async_trait;
 use bchain_util::hash_digest::{AsBytes, HashDigest, Hashable};
 use bchain_util::mine::Mine;
+use chrono::Utc;
 use itertools::iterate;
 use num::{BigUint, One, Zero};
 use rayon::iter::{ParallelBridge, ParallelIterator};
@@ -65,9 +66,10 @@ impl Block {
     TXs: IntoIterator<Item = Tx>,
   {
     let nonce: BigUint = Zero::zero();
+    let timestamp = Utc::now().timestamp();
     let mut block = Block {
       id: 0,
-      timestamp: chrono::Utc::now().timestamp(),
+      timestamp,
       txs: Default::default(),
       parent_hash: None,
       nonce: nonce.to_bytes_be(),

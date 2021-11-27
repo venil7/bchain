@@ -6,13 +6,15 @@ use std::str::FromStr;
 
 use self::{
   balance::balance_command, blocks::blocks_command, bootstrap::bootstrap_command,
-  dial::dial_command, message::message_command, peers::peers_command, tx::tx_command,
+  dial::dial_command, help::help_command, message::message_command, peers::peers_command,
+  tx::tx_command,
 };
 
 pub mod balance;
 pub mod blocks;
 pub mod bootstrap;
 pub mod dial;
+pub mod help;
 pub mod message;
 pub mod peers;
 pub mod tx;
@@ -27,6 +29,7 @@ pub enum UserCommand {
   Dial(Vec<String>),
   Balance(Option<Address>),
   Tx(Address, u64),
+  Help(&'static str),
 }
 
 impl FromStr for UserCommand {
@@ -41,6 +44,7 @@ impl FromStr for UserCommand {
       message_command,
       balance_command,
       bootstrap_command,
+      help_command,
     ))(msg)
     {
       Ok(cmd)

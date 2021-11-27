@@ -4,12 +4,13 @@ use crate::signature::Signature;
 use crate::wallet::Wallet;
 use bchain_util::hash_digest::{AsBytes, Hashable};
 use bchain_util::result::AppResult;
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-
 pub struct Tx {
   amount: u64,
+  timestamp: i64,
   sender: Address, //PublicKey::default() for coinbase tx
   receiver: Address,
   signature: Signature,
@@ -29,8 +30,10 @@ impl Tx {
     let receiver = wallet.address();
     let transaction_body = Tx::transaction_body(amount, &sender, &receiver);
     let signature = wallet.sign_hashable(&transaction_body)?;
+    let timestamp = Utc::now().timestamp();
     Ok(Tx {
       amount,
+      timestamp,
       sender,
       receiver,
       signature,
@@ -42,8 +45,10 @@ impl Tx {
     let transaction_body = Tx::transaction_body(amount, &sender, receiver);
     let signature = wallet.sign_hashable(&transaction_body)?;
     let receiver = receiver.clone();
+    let timestamp = Utc::now().timestamp();
     Ok(Tx {
       amount,
+      timestamp,
       sender,
       receiver,
       signature,
@@ -70,9 +75,10 @@ impl Tx {
 impl AsBytes for Tx {
   fn as_bytes(&self) -> std::vec::Vec<u8> {
     let mut res = vec![];
+    res.extend_from_slice(&self.amount.as_bytes());
+    res.extend_from_slice(&self.timestamp.as_bytes());
     res.extend_from_slice(&self.sender.as_bytes());
     res.extend_from_slice(&self.receiver.as_bytes());
-    res.extend_from_slice(&self.amount.as_bytes());
     // do not hash signature
     // signature used to sign bytes, so cant be included!
     res
@@ -109,6 +115,16 @@ mod tests {
     let wallet = Wallet::from_file(RSAKEY_PEM).await?;
     let tx = Tx::new(&wallet, &wallet.address(), 1234)?;
     tx.verify_signature()?;
+    Ok(())
+  }
+
+  #[async_std::test]
+  async fn reject_illegitimate_tx() -> AppResult<()> {
+    let wallet = Wallet::from_file(RSAKEY_PEM).await?;
+    let mut tx = Tx::new(&wallet, &wallet.address(), 1234)?;
+    tx.signature = Default::default(); // assigning wrong signature
+    let sig_verify_result = tx.verify_signature();
+    assert!(sig_verify_result.is_err());
     Ok(())
   }
 }

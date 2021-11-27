@@ -1,4 +1,5 @@
 use crate::commands::UserCommand;
+use crate::mine::mine;
 use crate::network::{
   bootstrap_init, local_balance, request_latest_block, request_specific_block, NumPeersConsensus,
 };
@@ -12,6 +13,7 @@ use bchain_db::database::{create_db, Db};
 use bchain_domain::address::Address;
 use bchain_domain::block::Block;
 use bchain_domain::tx::Tx;
+use bchain_domain::tx_pool::TxPool;
 use bchain_domain::{cli::Cli, wallet::Wallet};
 use bchain_util::group::peer_majority;
 use bchain_util::result::AppResult;
@@ -30,9 +32,9 @@ pub struct Node {
   topic: Topic,
   db: Arc<Mutex<Db>>,
   wallet: Arc<RwLock<Wallet>>,
+  tx_pool: Arc<Mutex<TxPool>>,
   swarm: BchainSwarm,
-  // #[allow(dead_code)]
-  // bootstrapped: Arc<RwLock<bool>>,
+
   network_latest: Channel<Block>,
   network_blocks: Channel<Block>,
 
@@ -50,10 +52,9 @@ impl Node {
     let wallet = Wallet::from_file(&cli.wallet).await?;
     let mut rsa_pkcs8 = wallet.to_pkcs8_der()?;
     let local_peer_key = identity::Keypair::rsa_from_pkcs8(&mut rsa_pkcs8)?;
-
     let db = create_db(&cli.database)?;
-
     let swarm = create_swarm(&local_peer_key, &topic).await?;
+    let tx_pool = TxPool::default();
     let cli = cli.clone();
     Ok(Node {
       cli,
@@ -61,6 +62,7 @@ impl Node {
       swarm,
       db: Arc::new(Mutex::new(db)),
       wallet: Arc::new(RwLock::new(wallet)),
+      tx_pool: Arc::new(Mutex::new(tx_pool)),
       network_latest: channel::unbounded(),
       network_blocks: channel::unbounded(),
       proposed_blocks: channel::unbounded(),
@@ -85,6 +87,27 @@ impl Node {
 
     let (_, mut network_responses) = self.network_responses.clone();
     let (_, mut network_requests) = self.network_requests.clone();
+
+    let _mining_task = {
+      let wallet = self.wallet.clone();
+      let db = self.db.clone();
+      let tx_pool = self.tx_pool.clone();
+      let (_, proposed_tx) = self.proposed_tx.clone();
+      let (_, proposed_blocks) = self.proposed_blocks.clone();
+      let (network_responses, _) = self.network_responses.clone();
+      task::spawn(async move {
+        mine(
+          wallet,
+          db,
+          tx_pool,
+          proposed_tx,
+          proposed_blocks,
+          network_responses,
+        )
+        .await?;
+        Ok(()) as AppResult<()>
+      });
+    };
 
     loop {
       select! {
@@ -133,6 +156,7 @@ impl Node {
       UserCommand::Msg(msg) => self.publish_user_message(msg),
       UserCommand::Balance(address) => self.print_balance(address),
       UserCommand::Tx(address, amount) => self.submit_tx(address, *amount),
+      UserCommand::Help(help_text) => info!("{}", help_text),
       UserCommand::Unrecognized => warn!("Unrecognized user input"),
     }
     Ok(())
@@ -303,6 +327,7 @@ impl Node {
       let npc = (num_peers, consensus);
 
       loop {
+        info!("Requesting latest block");
         let network_latest_block =
           request_latest_block(&npc, network_requests.clone(), network_latest.clone()).await?;
         let local_latest_block = db.lock().await.latest_block()?;
@@ -364,17 +389,17 @@ impl Node {
   }
 
   pub(crate) fn handle_proposed_tx(&self, tx: Tx) {
-    let (send_network_request, _) = self.proposed_tx.clone();
+    let (proposed_tx, _) = self.proposed_tx.clone();
     task::spawn(async move {
-      send_network_request.send(tx).await?;
+      proposed_tx.send(tx).await?;
       AppResult::Ok(())
     });
   }
 
   pub(crate) fn handle_proposed_block(&self, block: Block) {
-    let (send_network_request, _) = self.proposed_blocks.clone();
+    let (proposed_blocks, _) = self.proposed_blocks.clone();
     task::spawn(async move {
-      send_network_request.send(block).await?;
+      proposed_blocks.send(block).await?;
       AppResult::Ok(())
     });
   }
