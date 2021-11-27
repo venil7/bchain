@@ -21,7 +21,7 @@ use bchain_util::short::ShortDisplay;
 use futures::{prelude::*, select};
 use libp2p::gossipsub::{error::GossipsubHandlerError, GossipsubEvent, IdentTopic as Topic};
 use libp2p::{identity, swarm::SwarmEvent};
-use log::{debug, error, info, warn};
+use log::{error, info, warn};
 use std::{sync::Arc, time::Duration};
 
 type Channel<T> = (Sender<T>, Receiver<T>);
@@ -184,19 +184,18 @@ impl Node {
   }
 
   fn handle_bchain_request(&mut self, request: BchainRequest) {
-    info!("Network request: {}", request.to_string());
+    info!("Incoming request: {}", request.to_string());
     match request {
       BchainRequest::AskLatest => self.respond_latest_block(),
       BchainRequest::AskBlock(id) => self.respond_block(id),
       BchainRequest::SubmitTx(tx) => self.handle_proposed_tx(tx),
       BchainRequest::SubmitBlock(block) => self.handle_proposed_block(block),
       BchainRequest::Msg(msg) => info!("{}", msg),
-      // _ => warn!("Unhandled bchain request"),
     }
   }
 
   fn handle_bchain_response(&mut self, response: BchainResponse) {
-    debug!("Network response: {:?}", response);
+    info!("Incoming response: {}", response.to_string());
     match response {
       BchainResponse::Latest(block) => {
         let (network_latest_sender, _) = self.network_latest.clone();
@@ -222,13 +221,15 @@ impl Node {
     }
   }
 
-  fn publish_response(&mut self, res: &BchainResponse) -> AppResult<()> {
-    self.publish_to_swarm(&Frame::BchainResponse(res.clone()))?;
+  fn publish_response(&mut self, response: &BchainResponse) -> AppResult<()> {
+    info!("Outgoing response: {}", response.to_string());
+    self.publish_to_swarm(&Frame::BchainResponse(response.clone()))?;
     Ok(())
   }
 
-  fn publish_request(&mut self, req: &BchainRequest) -> AppResult<()> {
-    self.publish_to_swarm(&Frame::BchainRequest(req.clone()))?;
+  fn publish_request(&mut self, request: &BchainRequest) -> AppResult<()> {
+    info!("Outgoing request: {}", request.to_string());
+    self.publish_to_swarm(&Frame::BchainRequest(request.clone()))?;
     Ok(())
   }
 

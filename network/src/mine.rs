@@ -19,19 +19,37 @@ pub(crate) async fn mine(
   _pool: Arc<Mutex<TxPool>>,
   mut proposed_tx: Receiver<Tx>,
   mut proposed_blocks: Receiver<Block>,
-  _response: Sender<BchainResponse>,
+  response: Sender<BchainResponse>,
 ) -> AppResult<()> {
   loop {
     select! {
       tx = proposed_tx.select_next_some().fuse() => {
-          info!("miner received tx {:?}", tx.hash_digest());
+        let response = response.clone();
+        handle_proposed_tx(tx, response).await;
       },
       block = proposed_blocks.select_next_some().fuse() => {
-        info!("miner received block {:?}", block.hash_digest());
+        let response = response.clone();
+        handle_proposed_block(block, response).await;
       },
       complete => break,
     }
   }
-  warn!("mine loop exited");
+  warn!("Mining loop exited");
+  Ok(())
+}
+
+async fn handle_proposed_tx(tx: Tx, response: Sender<BchainResponse>) -> AppResult<()> {
+  response
+    .send(BchainResponse::AcceptTx(tx.hash_digest()))
+    .await?;
+  info!("miner received tx {:?}", tx.hash_digest());
+  Ok(())
+}
+
+async fn handle_proposed_block(block: Block, response: Sender<BchainResponse>) -> AppResult<()> {
+  response
+    .send(BchainResponse::AcceptBlock(block.hash_digest()))
+    .await?;
+  info!("miner received block {:?}", block.hash_digest());
   Ok(())
 }

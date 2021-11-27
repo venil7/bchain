@@ -43,3 +43,15 @@ impl ToString for BchainRequest {
     }
   }
 }
+
+impl ToString for BchainResponse {
+  fn to_string(&self) -> String {
+    match self {
+      BchainResponse::AcceptBlock(digest) => format!("AcceptBlock({})", digest),
+      BchainResponse::AcceptTx(digest) => format!("AcceptTx({})", digest),
+      BchainResponse::Block(block) => format!("Block({})", block.hash_digest()),
+      BchainResponse::Latest(block) => format!("Latest({})", block.hash_digest()),
+      BchainResponse::Error(error) => format!("Error({:?})", error),
+    }
+  }
+}

@@ -91,7 +91,7 @@ impl Db {
 
 pub fn create_db(path: &str) -> AppResult<Db> {
   let db = Db::new(path)?;
-  info!("Creating new chain DB");
+  info!("Using block chain database {}", path);
   embedded_migrations::run(db.raw_connection()?)?;
   Ok(db)
 }
