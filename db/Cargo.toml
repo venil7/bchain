@@ -15,4 +15,4 @@ serde = {version="1", features=["derive"]}
 diesel = { version = "1.4.7", features = ["sqlite", "chrono", "numeric"] }
 
 [dev-dependencies]
-async-std = {version="1.9.0", features=["attributes"]}
+async-std = { version="1", features=["attributes"] }

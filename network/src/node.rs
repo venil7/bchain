@@ -95,6 +95,7 @@ impl Node {
       let (_, proposed_tx) = self.proposed_tx.clone();
       let (_, proposed_blocks) = self.proposed_blocks.clone();
       let (network_responses, _) = self.network_responses.clone();
+      let (network_requests, _) = self.network_requests.clone();
       task::spawn(async move {
         mine(
           wallet,
@@ -102,6 +103,7 @@ impl Node {
           tx_pool,
           proposed_tx,
           proposed_blocks,
+          network_requests,
           network_responses,
         )
         .await?;

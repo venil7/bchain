@@ -1,4 +1,6 @@
+use crate::protocol::{BchainRequest, BchainResponse};
 use async_std::channel::{Receiver, Sender};
+use async_std::stream::interval;
 use async_std::sync::{Mutex, RwLock};
 use bchain_db::database::Db;
 use bchain_domain::block::Block;
@@ -10,8 +12,9 @@ use bchain_util::result::AppResult;
 use futures::{prelude::*, select};
 use log::{info, warn};
 use std::sync::Arc;
+use std::time::Duration;
 
-use crate::protocol::BchainResponse;
+const EVERY_10_MINUTES: Duration = Duration::from_secs(60_10);
 
 pub(crate) async fn mine(
   _wallet: Arc<RwLock<Wallet>>,
@@ -19,17 +22,28 @@ pub(crate) async fn mine(
   _pool: Arc<Mutex<TxPool>>,
   mut proposed_tx: Receiver<Tx>,
   mut proposed_blocks: Receiver<Block>,
-  response: Sender<BchainResponse>,
+  _bchain_request: Sender<BchainRequest>,
+  bchain_response: Sender<BchainResponse>,
 ) -> AppResult<()> {
+  let mut timer = interval(EVERY_10_MINUTES).fuse();
   loop {
     select! {
-      tx = proposed_tx.select_next_some().fuse() => {
-        let response = response.clone();
-        handle_proposed_tx(tx, response).await;
+      _tick = timer.select_next_some() => {
+        info!("mining cycle")
+        // let proposed_block = {
+        //   let mut pool = pool.lock().await;
+        //     pool.mine(1).await?;
+        //     pool.proposed_block()
+        // };
+        // bchain_request.send(BchainRequest::SubmitBlock(proposed_block)).await?;
       },
-      block = proposed_blocks.select_next_some().fuse() => {
-        let response = response.clone();
-        handle_proposed_block(block, response).await;
+      tx = proposed_tx.select_next_some() => {
+        let response = bchain_response.clone();
+        handle_proposed_tx(tx, response).await?;
+      },
+      block = proposed_blocks.select_next_some() => {
+        let response = bchain_response.clone();
+        handle_proposed_block(block, response).await?;
       },
       complete => break,
     }

@@ -1,7 +1,7 @@
-use crate::hash_digest::Hashable;
+use crate::result::AppResult;
 use async_trait::async_trait;
 
 #[async_trait]
-pub trait Mine: Hashable {
-  async fn mine(&mut self, difficulty: usize);
+pub trait Mine {
+  async fn mine(&mut self, difficulty: usize) -> AppResult<()>;
 }

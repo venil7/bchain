@@ -20,7 +20,7 @@ structopt = "0.3"
 bchain-util = { path = "../util" }
 serde = {version="1", features=["derive"]}
 pkcs8 = {version="0.7", features=["alloc", "pem"]}
-async-std = {version="1.9.0", features=["attributes"]}
+async-std = { version="1", features=["attributes"] }
 
 [dev-dependencies]
 serde_json = "1.0"

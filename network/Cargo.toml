@@ -11,7 +11,7 @@ libp2p="0.39"
 futures = "0.3"
 serde_json = "1.0"
 serde = {version="1", features=["derive"]}
-async-std = {version="1.10.0", features=["attributes", "unstable"]}
+async-std = {version="1", features=["attributes", "unstable"] }
 bchain-db = { path = "../db" }
 bchain-domain = { path = "../domain" }
 bchain-util = { path = "../util" }

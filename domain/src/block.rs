@@ -4,6 +4,7 @@ use async_std::task;
 use async_trait::async_trait;
 use bchain_util::hash_digest::{AsBytes, HashDigest, Hashable};
 use bchain_util::mine::Mine;
+use bchain_util::result::AppResult;
 use chrono::Utc;
 use itertools::iterate;
 use num::{BigUint, One, Zero};
@@ -42,7 +43,7 @@ impl Hashable for Block {}
 
 #[async_trait]
 impl Mine for Block {
-  async fn mine(&mut self, difficulty: usize) {
+  async fn mine(&mut self, difficulty: usize) -> AppResult<()> {
     let block = self.clone();
     self.nonce = task::spawn(async move {
       let zero: BigUint = Zero::zero();
@@ -57,6 +58,7 @@ impl Mine for Block {
       solution.unwrap().0
     })
     .await;
+    Ok(())
   }
 }
 
@@ -162,7 +164,7 @@ mod tests {
   #[async_std::test]
   async fn difficulty_test_1() -> AppResult<()> {
     let mut block = Block::default();
-    block.mine(1).await;
+    block.mine(1).await?;
     assert!(block.hash_difficulty() >= 1);
     Ok(())
   }
@@ -170,7 +172,7 @@ mod tests {
   #[async_std::test]
   async fn difficulty_test_2() -> AppResult<()> {
     let mut block = Block::default();
-    block.mine(2).await;
+    block.mine(2).await?;
     assert!(block.hash_difficulty() >= 2);
     Ok(())
   }

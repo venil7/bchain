@@ -13,7 +13,7 @@ log="0.4"
 dotenv="0.15"
 structopt = "0.3"
 pretty_env_logger = "0.4"
-async-std = {version="1.9.0", features=["attributes"]}
+async-std = { version="1", features=["attributes"] }
 bchain-util = { path = "util" }
 bchain-domain = { path = "domain" }
 bchain-network = { path = "network" }
