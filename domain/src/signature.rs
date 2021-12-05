@@ -7,7 +7,7 @@ use std::ops::DerefMut;
 
 const SIGNATURE_LENGTH: usize = 256;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
 pub struct Signature(Vec<u8>);
 
 impl Deref for Signature {

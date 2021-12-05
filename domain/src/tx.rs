@@ -7,7 +7,7 @@ use bchain_util::result::AppResult;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
 pub struct Tx {
   amount: u64,
   timestamp: i64,

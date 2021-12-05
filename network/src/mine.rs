@@ -14,7 +14,7 @@ use log::{info, warn};
 use std::sync::Arc;
 use std::time::Duration;
 
-const EVERY_10_MINUTES: Duration = Duration::from_secs(60_10);
+const EVERY_10_MINUTES: Duration = Duration::from_secs(60_00);
 
 pub(crate) async fn mine(
   _wallet: Arc<RwLock<Wallet>>,

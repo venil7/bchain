@@ -13,7 +13,7 @@ pub const PADDING: PaddingScheme = PaddingScheme::PKCS1v15Sign {
   hash: Some(Hash::SHA2_256),
 };
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
 pub struct PublicKey(Vec<u8>);
 
 impl Deref for PublicKey {

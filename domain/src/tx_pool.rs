@@ -16,6 +16,11 @@ impl Mine for TxPool {
 }
 
 impl TxPool {
+  pub fn add(&mut self, tx: Tx) -> AppResult<()> {
+    self.pool.insert(tx);
+    Ok(())
+  }
+
   pub fn proposed_block(&self) -> Block {
     Block::default()
   }

@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use std::iter::repeat;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct Block {
   pub id: i64,
   pub timestamp: i64,
@@ -67,14 +67,10 @@ impl Block {
   where
     TXs: IntoIterator<Item = Tx>,
   {
-    let nonce: BigUint = Zero::zero();
     let timestamp = Utc::now().timestamp();
     let mut block = Block {
-      id: 0,
       timestamp,
-      txs: Default::default(),
-      parent_hash: None,
-      nonce: nonce.to_bytes_be(),
+      ..Default::default()
     };
     if let Some(txs) = txs {
       for tx in txs {
@@ -84,17 +80,16 @@ impl Block {
     block
   }
 
-  pub fn from_previous(previous_block: &Block) -> Block {
+  pub fn from_previous<TXs>(previous_block: &Block, txs: Option<TXs>) -> Block
+  where
+    TXs: IntoIterator<Item = Tx>,
+  {
     Block {
       id: previous_block.id + 1,
       timestamp: chrono::Utc::now().timestamp(),
       parent_hash: Some(previous_block.hash_digest()),
-      ..Default::default()
+      ..Self::new(txs)
     }
-  }
-
-  pub fn new_next(&self) -> Self {
-    Self::from_previous(self)
   }
 
   pub fn add(&mut self, tx: &Tx) {
@@ -114,11 +109,9 @@ impl Block {
     block.nonce = nonce.to_owned();
     block.hash_difficulty() >= difficulty
   }
-}
 
-impl Default for Block {
-  fn default() -> Self {
-    Self::new::<Vec<Tx>>(None)
+  pub fn is_empty(&self) -> bool {
+    self.txs.is_empty()
   }
 }
 
@@ -150,9 +143,8 @@ mod tests {
   async fn bloc_equality_test() -> AppResult<()> {
     let wallet = Wallet::from_file(RSAKEY_PEM).await?;
     let genesis = Block::default();
-    let mut block = Block::from_previous(&genesis);
     let tx = Tx::new(&wallet, &wallet.address(), 1234)?;
-    block.add(&tx);
+    let block = Block::from_previous(&genesis, Some([tx]));
     let hash1 = block.hash_digest();
     let json = serde_json::to_string(&block)?;
     let block: Block = serde_json::from_str(&json)?;
